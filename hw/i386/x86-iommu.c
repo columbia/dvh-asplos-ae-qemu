@@ -138,6 +138,7 @@ static Property x86_iommu_properties[] = {
     DEFINE_PROP_BOOL("intremap", X86IOMMUState, intr_supported, false),
     DEFINE_PROP_BOOL("device-iotlb", X86IOMMUState, dt_supported, false),
     DEFINE_PROP_BOOL("pt", X86IOMMUState, pt_supported, true),
+    DEFINE_PROP_BOOL("intpost", X86IOMMUState, intpost_supported, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
