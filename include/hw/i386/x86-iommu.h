@@ -77,6 +77,7 @@ struct X86IOMMUState {
     bool intr_supported;        /* Whether vIOMMU supports IR */
     bool dt_supported;          /* Whether vIOMMU supports DT */
     bool pt_supported;          /* Whether vIOMMU supports pass-through */
+    bool intpost_supported;        /* Whether vIOMMU supports PI */
     IommuType type;             /* IOMMU type - AMD/Intel     */
     QLIST_HEAD(, IEC_Notifier) iec_notifiers; /* IEC notify list */
 };
