@@ -2727,35 +2727,82 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
     return 0;
 }
 
+
+/* Interrupt-Posting Hardware Operation. See VT-d spec 5.2.3 */
+static int vtd_pi_setup_irq(X86IOMMUIrq *irq, VTD_IR_TableEntry irte, int index,
+			    VTD_irte_pi_info *pi_info)
+{
+    VTD_PI_Descriptor pi_desc;
+    uint64_t pda;   /* Posted Interrupt Descriptor address */
+    uint32_t pda_l, pda_h;
+    int ret = 0;
+
+#define PDA_LOW_BIT    26
+    pda_l = le64_to_cpu(irte.irte_pi.pd_addr_lo) << (32 - PDA_LOW_BIT);
+    pda_h = le64_to_cpu(irte.irte_pi.pd_addr_hi);
+    pda = ((uint64_t) pda_h << 32) | pda_l;
+
+    if (pi_info){
+	    pi_info->pid_addr = pda;
+	    pi_info->urgent = irte.irte_pi.urgent;
+	    pi_info->vector = irte.irte_pi.vector;
+    }
+
+    trace_vtd_pi_setup_irq(index, pda);
+
+    if (dma_memory_read(&address_space_memory, pda, &pi_desc,
+                        sizeof(pi_desc))) {
+        error_report_once("Memory read failed for Posted Interrupt Descriptor.");
+        /* TODO: change this error code */
+        return -VTD_FR_IR_ROOT_INVAL;
+    }
+
+    irq->dest = pi_desc.control.ndst;
+    irq->vector = irte.irte_pi.vector;
+    irq->delivery_mode = 0; /* Fixed (000b) */
+    irq->redir_hint = 0;    /* Clear (0b) */
+    irq->trigger_mode = 0;  /* Edge (0b) */
+
+    return ret;
+}
+
 /* Fetch IRQ information of specific IR index */
 static int vtd_remap_irq_get(IntelIOMMUState *iommu, uint16_t index,
                              X86IOMMUIrq *irq, uint16_t sid)
 {
     VTD_IR_TableEntry irte = {};
     int ret = 0;
+    bool pi;
 
     ret = vtd_irte_get(iommu, index, &irte, sid);
     if (ret) {
         return ret;
     }
 
-    irq->trigger_mode = irte.irte.trigger_mode;
-    irq->vector = irte.irte.vector;
-    irq->delivery_mode = irte.irte.delivery_mode;
-    irq->dest = le32_to_cpu(irte.irte.dest_id);
-    if (!iommu->intr_eime) {
+    pi = irte.irte.irte_mode;
+    /* Interrupt remapping */
+    if (!pi)
+    {
+        irq->trigger_mode = irte.irte.trigger_mode;
+        irq->vector = irte.irte.vector;
+        irq->delivery_mode = irte.irte.delivery_mode;
+        irq->dest = le32_to_cpu(irte.irte.dest_id);
+        if (!iommu->intr_eime) {
 #define  VTD_IR_APIC_DEST_MASK         (0xff00ULL)
 #define  VTD_IR_APIC_DEST_SHIFT        (8)
-        irq->dest = (irq->dest & VTD_IR_APIC_DEST_MASK) >>
-            VTD_IR_APIC_DEST_SHIFT;
+            irq->dest = (irq->dest & VTD_IR_APIC_DEST_MASK) >>
+                VTD_IR_APIC_DEST_SHIFT;
+        }
+        irq->dest_mode = irte.irte.dest_mode;
+        irq->redir_hint = irte.irte.redir_hint;
+    } else {
+        ret = vtd_pi_setup_irq(irq, irte, index, NULL);
     }
-    irq->dest_mode = irte.irte.dest_mode;
-    irq->redir_hint = irte.irte.redir_hint;
 
-    trace_vtd_ir_remap(index, irq->trigger_mode, irq->vector,
+    trace_vtd_ir_remap(index, pi, irq->trigger_mode, irq->vector,
                        irq->delivery_mode, irq->dest, irq->dest_mode);
 
-    return 0;
+    return ret;
 }
 
 /* Interrupt remapping for MSI/MSI-X entry */
