@@ -2842,8 +2842,9 @@ out:
     return 0;
 }
 
+/* Just ignore pi_desc_addr for now */
 static int vtd_int_remap(X86IOMMUState *iommu, MSIMessage *src,
-                         MSIMessage *dst, uint16_t sid)
+                         MSIMessage *dst, uint16_t sid, uint64_t *pi_desc_addr)
 {
     return vtd_interrupt_remap_msi(INTEL_IOMMU_DEVICE(iommu),
                                    src, dst, sid);

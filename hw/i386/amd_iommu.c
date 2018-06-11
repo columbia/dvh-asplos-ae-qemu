@@ -1328,10 +1328,12 @@ remap_fail:
     return ret;
 }
 
+/* Just ignore pi_desc_addr for now */
 static int amdvi_int_remap(X86IOMMUState *iommu,
                            MSIMessage *origin,
                            MSIMessage *translated,
-                           uint16_t sid)
+                           uint16_t sid,
+			   uint64_t *pi_desc_addr)
 {
     return amdvi_int_remap_msi(AMD_IOMMU_DEVICE(iommu), origin,
                                translated, sid);

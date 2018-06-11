@@ -51,7 +51,7 @@ struct X86IOMMUClass {
     DeviceRealize realize;
     /* MSI-based interrupt remapping */
     int (*int_remap)(X86IOMMUState *iommu, MSIMessage *src,
-                     MSIMessage *dst, uint16_t sid);
+                     MSIMessage *dst, uint16_t sid, uint64_t *pi_desc_addr);
 };
 
 /**

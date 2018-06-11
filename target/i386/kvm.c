@@ -3851,7 +3851,7 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
 
         ret = class->int_remap(iommu, &src, &dst, dev ? \
                                pci_requester_id(dev) : \
-                               X86_IOMMU_SID_INVALID);
+                               X86_IOMMU_SID_INVALID, NULL);
         if (ret) {
             trace_kvm_x86_fixup_msi_error(route->gsi);
             return 1;
