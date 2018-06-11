@@ -68,6 +68,7 @@ typedef union VTD_IR_TableEntry VTD_IR_TableEntry;
 typedef union VTD_IR_TableEntry_PI VTD_IR_TableEntry_PI;
 typedef struct VTD_PI_Descriptor VTD_PI_Descriptor;
 typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
+typedef struct VTD_irte_pi_info VTD_irte_pi_info;
 
 /* Context-Entry */
 struct VTDContextEntry {
@@ -263,6 +264,13 @@ union VTD_IR_MSIAddress {
 #endif
     } QEMU_PACKED addr;
     uint32_t data;
+};
+
+/* Keep PI related info in IRTE */
+struct VTD_irte_pi_info {
+    uint64_t pid_addr;	/* PI descriptor addres */
+    uint8_t urgent; /* Urgent bit */
+    uint8_t vector;
 };
 
 /* When IR is enabled, all MSI/MSI-X data bits should be zero */
