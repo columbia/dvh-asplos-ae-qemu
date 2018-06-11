@@ -3282,6 +3282,14 @@ static void vtd_init(IntelIOMMUState *s)
             s->ecap |= VTD_ECAP_EIM;
         }
         assert(s->intr_eim != ON_OFF_AUTO_AUTO);
+
+        /*
+         * Hardware implementations reporting PI as Set must also report
+         * Interrupt Remapping support field as Set. See VT-d 10.4.2.
+         */
+        if (x86_iommu->intpost_supported) {
+            s->cap |= VTD_CAP_PI;
+        }
     }
 
     if (x86_iommu->dt_supported) {
