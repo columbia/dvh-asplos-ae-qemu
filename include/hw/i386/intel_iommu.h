@@ -65,6 +65,7 @@ typedef struct VTDAddressSpace VTDAddressSpace;
 typedef struct VTDIOTLBEntry VTDIOTLBEntry;
 typedef struct VTDBus VTDBus;
 typedef union VTD_IR_TableEntry VTD_IR_TableEntry;
+typedef union VTD_IR_TableEntry_PI VTD_IR_TableEntry_PI;
 typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
 
 /* Context-Entry */
