@@ -2654,6 +2654,8 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
 
     trace_vtd_ir_irte_get(index, le64_to_cpu(entry->data[1]),
                           le64_to_cpu(entry->data[0]));
+    if (entry->irte.irte_mode)
+        trace_vtd_ir_irte_pi_get(index, entry->irte_pi.vector);
 
     if (!entry->irte.present) {
         error_report_once("%s: detected non-present IRTE "
