@@ -66,6 +66,7 @@ typedef struct VTDIOTLBEntry VTDIOTLBEntry;
 typedef struct VTDBus VTDBus;
 typedef union VTD_IR_TableEntry VTD_IR_TableEntry;
 typedef union VTD_IR_TableEntry_PI VTD_IR_TableEntry_PI;
+typedef struct VTD_PI_Descriptor VTD_PI_Descriptor;
 typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
 
 /* Context-Entry */
@@ -212,6 +213,31 @@ union VTD_IR_TableEntry {
     irte irte;
     irte_pi irte_pi;
     uint64_t data[2];
+};
+
+
+/* Posted Interrupt Descriptor */
+/* TODO: add endianness */
+struct VTD_PI_Descriptor {
+#define PIRR_SIZE 8                  /* Posted Interrupt Requests (256 bits) */
+    uint32_t pir[PIRR_SIZE];
+
+    union {
+        struct {
+            uint16_t on:1;               /* Outstanding Notification */
+            uint16_t sn:1;               /* Suppress Notification */
+            uint16_t __reserved_1:14;    /* Reserved 1 */
+            uint8_t nv;                  /* Notification vector */
+            uint8_t __reserved_2;        /* Reserved 2 */
+            uint32_t ndst;               /* Notification Destination - Physical APIC-ID of the logical CPU) */
+        } QEMU_PACKED control;
+
+        uint32_t data;
+    };
+
+#define PID_RESERVED 6
+    uint32_t rsvd[6];
+
 };
 
 #define VTD_IR_INT_FORMAT_COMPAT     (0) /* Compatible Interrupt */
