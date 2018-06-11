@@ -3837,6 +3837,7 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
 
     if (iommu) {
         int ret;
+	uint64_t pi_desc_addr = 0;
         MSIMessage src, dst;
         X86IOMMUClass *class = X86_IOMMU_GET_CLASS(iommu);
 
@@ -3851,7 +3852,7 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
 
         ret = class->int_remap(iommu, &src, &dst, dev ? \
                                pci_requester_id(dev) : \
-                               X86_IOMMU_SID_INVALID, NULL);
+                               X86_IOMMU_SID_INVALID, &pi_desc_addr);
         if (ret) {
             trace_kvm_x86_fixup_msi_error(route->gsi);
             return 1;
@@ -3860,6 +3861,8 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
         route->u.msi.address_hi = dst.address >> VTD_MSI_ADDR_HI_SHIFT;
         route->u.msi.address_lo = dst.address & VTD_MSI_ADDR_LO_MASK;
         route->u.msi.data = dst.data;
+	/* Add pi_desc_addr */
+	route->pi_desc_addr = pi_desc_addr;
     }
 
     return 0;
@@ -3919,7 +3922,7 @@ int kvm_arch_add_msi_route_post(struct kvm_irq_routing_entry *route,
     entry->virq = route->gsi;
     QLIST_INSERT_HEAD(&msi_route_list, entry, list);
 
-    trace_kvm_x86_add_msi_route(route->gsi);
+    trace_kvm_x86_add_msi_route(vector, route->gsi);
 
     if (!notify_list_inited) {
         /* For the first time we do add route, add ourselves into
