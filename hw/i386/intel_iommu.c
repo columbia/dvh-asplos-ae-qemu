@@ -2665,13 +2665,24 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
         return -VTD_FR_IR_ENTRY_P;
     }
 
-    if (entry->irte.__reserved_0 || entry->irte.__reserved_1 ||
-        entry->irte.__reserved_2) {
-        error_report_once("%s: detected non-zero reserved IRTE "
-                          "(index=%u, high=0x%" PRIx64 ", low=0x%" PRIx64 ")",
-                          __func__, index, le64_to_cpu(entry->data[1]),
-                          le64_to_cpu(entry->data[0]));
-        return -VTD_FR_IR_IRTE_RSVD;
+    if (!entry->irte.irte_mode) {
+        if (entry->irte.__reserved_0 || entry->irte.__reserved_1 ||
+            entry->irte.__reserved_2) {
+            error_report_once("%s: detected non-zero reserved IRTE "
+                              "(index=%u, high=0x%" PRIx64 ", low=0x%" PRIx64 ")",
+                              __func__, index, le64_to_cpu(entry->data[1]),
+                              le64_to_cpu(entry->data[0]));
+            return -VTD_FR_IR_IRTE_RSVD;
+        }
+    } else {
+        if (entry->irte_pi.__reserved_0 || entry->irte_pi.__reserved_1 ||
+            entry->irte_pi.__reserved_2 || entry->irte_pi.__reserved_3) {
+            error_report_once("%s: detected non-zero reserved IRTE for PI "
+                              "(index=%u, high=0x%" PRIx64 ", low=0x%" PRIx64 ")",
+                              __func__, index, le64_to_cpu(entry->data[1]),
+                              le64_to_cpu(entry->data[0]));
+            return -VTD_FR_IR_IRTE_RSVD;
+        }
     }
 
     if (sid != X86_IOMMU_SID_INVALID) {
