@@ -2367,24 +2367,33 @@ static int kvm_get_nested_state(X86CPU *cpu)
 
     nested_state = g_malloc0(sizeof(struct kvm_nested_state));
 
+    printf("%s enter\n", __func__);
     nested_state->size = sizeof(struct kvm_nested_state);
+    printf("%s trying with size: %d\n", __func__, nested_state->size);
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_NESTED_STATE, nested_state);
     if (ret < 0 && ret != -E2BIG) {
+    	printf("%s error: %d\n", __func__, ret);
         return ret;
     } else if (ret == -E2BIG) {
         size = nested_state->size;
+    	printf("%s got E2BIG. size: %d\n", __func__, size);
         g_free(nested_state);
         nested_state = g_malloc0(size);
         nested_state->size = size;
+        printf("%s re-trying with size: %d\n", __func__, nested_state->size);
         ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_NESTED_STATE, nested_state);
-        if (ret < 0)
+        if (ret < 0) {
+    	    printf("%s got error in the second ioctl: %d\n", __func__, ret);
             return ret;
+	}
     }
 
     if (env->nested_state)
         g_free(env->nested_state);
 
     env->nested_state = nested_state;
+    printf("%s done. nested_state: %p, size: %d\n", __func__,
+    		env->nested_state,env->nested_state->size);
     return 0;
 }
 
