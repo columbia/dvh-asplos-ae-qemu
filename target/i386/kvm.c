@@ -1958,6 +1958,20 @@ static int kvm_put_msr_feature_control(X86CPU *cpu)
     return 0;
 }
 
+static int kvm_put_nested_state(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    int ret = 0;
+
+    if (env->nested_state) {
+        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_NESTED_STATE, env->nested_state);
+        g_free(env->nested_state);
+        env->nested_state = NULL;
+    }
+
+    return ret;
+}
+
 static int kvm_put_msrs(X86CPU *cpu, int level)
 {
     CPUX86State *env = &cpu->env;
@@ -2342,6 +2356,33 @@ static int kvm_get_sregs(X86CPU *cpu)
     /* changes to apic base and cr8/tpr are read back via kvm_arch_post_run */
     x86_update_hflags(env);
 
+    return 0;
+}
+
+static int kvm_get_nested_state(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    struct kvm_nested_state *nested_state;
+    int ret, size;
+
+    nested_state = g_malloc0(sizeof (struct kvm_nested_state));
+
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_NESTED_STATE, nested_state);
+    if (ret < 0 && ret != -E2BIG) {
+        return ret;
+    } else if (ret == -E2BIG) {
+        size = nested_state->size;
+        g_free(nested_state);
+        nested_state = g_malloc0(size);
+        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_NESTED_STATE, nested_state);
+        if (ret < 0)
+            return ret;
+    }
+
+    if (env->nested_state)
+        g_free(env->nested_state);
+
+    env->nested_state = nested_state;
     return 0;
 }
 
@@ -3086,6 +3127,10 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     if (ret < 0) {
         return ret;
     }
+    ret = kvm_put_nested_state(x86_cpu);
+    if (ret < 0) {
+        return ret;
+    }
     ret = kvm_put_vcpu_events(x86_cpu, level);
     if (ret < 0) {
         return ret;
@@ -3149,6 +3194,10 @@ int kvm_arch_get_registers(CPUState *cs)
         goto out;
     }
     ret = kvm_get_msrs(cpu);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = kvm_get_nested_state(cpu);
     if (ret < 0) {
         goto out;
     }
