@@ -2365,8 +2365,9 @@ static int kvm_get_nested_state(X86CPU *cpu)
     struct kvm_nested_state *nested_state;
     int ret, size;
 
-    nested_state = g_malloc0(sizeof (struct kvm_nested_state));
+    nested_state = g_malloc0(sizeof(struct kvm_nested_state));
 
+    nested_state->size = sizeof(struct kvm_nested_state);
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_NESTED_STATE, nested_state);
     if (ret < 0 && ret != -E2BIG) {
         return ret;
@@ -2374,6 +2375,7 @@ static int kvm_get_nested_state(X86CPU *cpu)
         size = nested_state->size;
         g_free(nested_state);
         nested_state = g_malloc0(size);
+        nested_state->size = size;
         ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_NESTED_STATE, nested_state);
         if (ret < 0)
             return ret;
