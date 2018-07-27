@@ -1041,6 +1041,7 @@ VMStateDescription vmstate_x86_cpu = {
         VMSTATE_UINT8(env.nmi_pending, X86CPU),
         VMSTATE_UINT8(env.has_error_code, X86CPU),
         VMSTATE_UINT32(env.sipi_vector, X86CPU),
+        VMSTATE_UINT8_ARRAY(env.nested_state, X86CPU, 4096 + 128),
         /* MCE */
         VMSTATE_UINT64(env.mcg_cap, X86CPU),
         VMSTATE_UINT64(env.mcg_status, X86CPU),
