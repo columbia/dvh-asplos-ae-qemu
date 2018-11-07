@@ -29,6 +29,31 @@
 #define QEMU_VM_COMMAND              0x08
 #define QEMU_VM_SECTION_FOOTER       0x7e
 
+#include "migration/register.h"
+
+typedef struct CompatEntry {
+    char idstr[256];
+    int instance_id;
+} CompatEntry;
+
+typedef struct SaveStateEntry {
+    QTAILQ_ENTRY(SaveStateEntry) entry;
+    char idstr[256];
+    int instance_id;
+    int alias_id;
+    int version_id;
+    /* version id read from the stream */
+    int load_version_id;
+    int section_id;
+    /* section id read from the stream */
+    int load_section_id;
+    SaveVMHandlers *ops;
+    const VMStateDescription *vmsd;
+    void *opaque;
+    CompatEntry *compat;
+    int is_ram;
+} SaveStateEntry;
+
 bool qemu_savevm_state_blocked(Error **errp);
 void qemu_savevm_state_setup(QEMUFile *f);
 int qemu_savevm_state_resume_prepare(MigrationState *s);
