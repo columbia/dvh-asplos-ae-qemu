@@ -712,9 +712,49 @@ static void vfio_listener_region_del(MemoryListener *listener,
     }
 }
 
+static void vfio_log_start(MemoryListener *listener,
+                           MemoryRegionSection *section,
+                           int old, int new)
+{
+    if (old != 0)
+        return;
+
+    vfio_listener_region_del(listener, section);
+    __vfio_listener_region_add(listener, section, true);
+}
+
+static void vfio_log_stop(MemoryListener *listener,
+                          MemoryRegionSection *section,
+                          int old, int new)
+{
+    ;
+}
+
+static void vfio_log_sync(MemoryListener *listener,
+                          MemoryRegionSection *section)
+{
+    ;
+}
+
+static void vfio_log_global_start(MemoryListener *listener)
+{
+    ;
+}
+
+static void vfio_log_global_stop(MemoryListener *listener)
+{
+    ;
+}
+
 static const MemoryListener vfio_memory_listener = {
     .region_add = vfio_listener_region_add,
     .region_del = vfio_listener_region_del,
+    .log_start = vfio_log_start,
+    .log_stop = vfio_log_stop,
+    .log_sync = vfio_log_sync,
+    .log_global_start = vfio_log_global_start,
+    .log_global_stop = vfio_log_global_stop,
+
 };
 
 static void vfio_listener_release(VFIOContainer *container)
