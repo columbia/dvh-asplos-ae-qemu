@@ -1230,6 +1230,12 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
         return virq;
     }
 
+    if(virq == 2 && !strcmp(dev->name, "vfio-pci")) {
+
+        printf("We change virq from %d to %d\n", virq, 24 +vector); 
+        virq = 24 + vector;
+    }
+
     kroute.gsi = virq;
     kroute.type = KVM_IRQ_ROUTING_MSI;
     kroute.flags = 0;
