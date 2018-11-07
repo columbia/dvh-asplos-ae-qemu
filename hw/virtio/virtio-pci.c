@@ -1755,15 +1755,15 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     proxy->common.size = 0x1000;
     proxy->common.type = VIRTIO_PCI_CAP_COMMON_CFG;
 
-    proxy->isr.offset = 0x1000;
+    proxy->isr.offset = proxy->common.offset + proxy->common.size;
     proxy->isr.size = 0x1000;
     proxy->isr.type = VIRTIO_PCI_CAP_ISR_CFG;
 
-    proxy->device.offset = 0x2000;
+    proxy->device.offset = proxy->isr.offset + proxy->isr.size;
     proxy->device.size = 0x1000;
     proxy->device.type = VIRTIO_PCI_CAP_DEVICE_CFG;
 
-    proxy->notify.offset = 0x3000;
+    proxy->notify.offset = proxy->device.offset + proxy->device.size;
     proxy->notify.size = virtio_pci_queue_mem_mult(proxy) * VIRTIO_QUEUE_MAX;
     proxy->notify.type = VIRTIO_PCI_CAP_NOTIFY_CFG;
 
