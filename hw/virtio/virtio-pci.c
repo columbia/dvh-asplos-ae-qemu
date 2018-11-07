@@ -1752,7 +1752,8 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     proxy->modern_mem_bar_idx = 4;
 
     proxy->common.offset = 0x0;
-    proxy->common.size = 0x1000;
+    /* Add 0x10000 to save device state */
+    proxy->common.size = 0x1000 + DEV_BUF_SIZE;
     proxy->common.type = VIRTIO_PCI_CAP_COMMON_CFG;
 
     proxy->isr.offset = proxy->common.offset + proxy->common.size;

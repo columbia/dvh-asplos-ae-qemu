@@ -156,6 +156,8 @@ typedef struct VirtIOPCIQueue {
   uint32_t used[2];
 } VirtIOPCIQueue;
 
+/* This covers virtio-net device */
+#define DEV_BUF_SIZE 0x10000
 struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     MemoryRegion bar;
