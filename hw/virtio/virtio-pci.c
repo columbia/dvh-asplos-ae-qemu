@@ -1170,6 +1170,7 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     uint32_t val = 0;
     int i;
+    int offset;
 
     switch (addr) {
     case VIRTIO_PCI_COMMON_DFSELECT:
@@ -1241,6 +1242,11 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
     case VIRTIO_PCI_COMMON_Q_USEDHI:
         val = proxy->vqs[vdev->queue_sel].used[1];
         break;
+    case VIRTIO_PCI_COMMON_DEV_STATE_START ... VIRTIO_PCI_COMMON_DEV_STATE_END:
+        offset = addr -VIRTIO_PCI_COMMON_DEV_STATE_START;
+        memcpy(&val, &proxy->dev_state[offset], size);
+        break;
+
     default:
         val = 0;
     }
@@ -1253,6 +1259,8 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
 {
     VirtIOPCIProxy *proxy = opaque;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    int offset;
 
     switch (addr) {
     case VIRTIO_PCI_COMMON_DFSELECT:
@@ -1340,6 +1348,11 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
     case VIRTIO_PCI_COMMON_Q_USEDHI:
         proxy->vqs[vdev->queue_sel].used[1] = val;
         break;
+    case VIRTIO_PCI_COMMON_DEV_STATE_START ... VIRTIO_PCI_COMMON_DEV_STATE_END:
+        offset = addr - VIRTIO_PCI_COMMON_DEV_STATE_START;
+        memcpy(&proxy->dev_state[offset], &val, size);
+        break;
+
     default:
         break;
     }
