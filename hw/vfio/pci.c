@@ -35,6 +35,8 @@
 #include "trace.h"
 #include "qapi/error.h"
 
+#include "standard-headers/linux/virtio_pci.h"
+
 #define MSIX_CAP_LENGTH 12
 
 #define TYPE_VFIO_PCI "vfio-pci"
@@ -3228,9 +3230,129 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+/* Mimic virtio_pci_save_config */
+static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
+{
+    int ret;
+    int dev_state_size;
+    /* We assume this vfio device is PCI device */
+    PCIDevice *pdev = &vdev->pdev;
+    /* XXX: We know that device state is saved in BAR4 of virtio device */
+    off_t bar_offset = 0x40000000000;
+    uint8_t dev_state[0x10000];
+
+    pci_device_save(pdev, f);
+    msix_save(pdev, f);
+
+    /* Capture the device state to the device state area in the device */
+    ret = pread(vdev->vbasedev.fd, &dev_state_size, 4, bar_offset + VIRTIO_PCI_COMMON_STATE_RW);
+    if (ret != 4) {
+        printf("Fail to save device state\n");
+        return -1;
+    }
+
+    /* Read device state from the device state area */
+    ret = pread(vdev->vbasedev.fd, &dev_state, dev_state_size, bar_offset + VIRTIO_PCI_COMMON_DEV_STATE_START);
+    if (ret != dev_state_size) {
+        printf("Fail to copy device state. requested: %d, read: %d\n",
+               dev_state_size, ret);
+        return -1;
+    }
+
+    qemu_put_be32(f, dev_state_size);
+    qemu_put_buffer(f, dev_state, dev_state_size);
+
+    return 0;
+}
+
+/* Mimic virtio_pci_load_config */
+static int vfio_load(VFIOPCIDevice *vdev, QEMUFile *f, int version_id)
+{
+    int ret;
+    int dev_state_size;
+    uint32_t ctl;
+    uint32_t val;
+    /* We assume this vfio device is PCI device */
+    PCIDevice *pdev = &vdev->pdev;
+    uint8_t dev_state[0x10000];
+    off_t bar_offset = 0x40000000000;
+
+    pci_device_load(pdev, f);
+
+    /* restore pci bar configuration all the way down to the device */
+    ctl = pci_default_read_config(pdev, PCI_COMMAND, 2);
+    vfio_pci_write_config(pdev, PCI_COMMAND, ctl, 2);
+
+    /* Start MSIX disabled from vfio's perspective, since the destination vfio
+     * never enabled it through vfio API. We will restore the enable
+     * bit with vfio API */
+    ctl = pci_default_read_config(pdev, pdev->msix_cap + PCI_MSIX_FLAGS, 2);
+    val = ctl & (!PCI_MSIX_FLAGS_ENABLE);
+    pci_default_write_config(pdev, pdev->msix_cap + PCI_MSIX_FLAGS, val, 2);
+
+    /* Do some job here if necessary, e.g. writing to msix tables? */
+
+    /* Restore the enable bit */
+    vfio_pci_write_config(pdev, pdev->msix_cap + PCI_MSIX_FLAGS, ctl , 2);
+
+    /* Copied from virtio */
+    msix_unuse_all_vectors(pdev);
+    msix_load(pdev, f);
+
+    /* get device state through QEMU file */
+    dev_state_size = qemu_get_be32(f);
+    qemu_get_buffer(f, dev_state, dev_state_size);
+
+    /* write device state to device state area in the device*/
+    ret = pwrite(vdev->vbasedev.fd, &dev_state, dev_state_size, bar_offset + VIRTIO_PCI_COMMON_DEV_STATE_START);
+    if (ret != dev_state_size) {
+        printf("Fail to write device state. Requested: %d, written: %d\n",
+               dev_state_size, ret);
+        return -1;
+    }
+
+    /* Send a command to restore device state from device state area */
+    ret = pwrite(vdev->vbasedev.fd, &dev_state_size, 4, bar_offset + VIRTIO_PCI_COMMON_STATE_RW);
+    if (ret != 4) {
+        printf("Fail to restore device state. ret: %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+/* A wrapper for use as a VMState .put function */
+static int vfio_device_put(QEMUFile *f, void *opaque, size_t size,
+                           VMStateField *field, QJSON *vmdesc)
+{
+    VFIOPCIDevice *vdev = opaque;
+    return vfio_save(vdev, f);
+}
+
+/* A wrapper for use as a VMState .get function */
+static int vfio_device_get(QEMUFile *f, void *opaque, size_t size,
+                           VMStateField *field)
+{
+    VFIOPCIDevice *vdev = opaque;
+
+    /* Use version_id 0, which nobody cares */
+    return vfio_load(vdev, f, 0);
+}
+
+const VMStateInfo vfio_vmstate_info = {
+    .name = "vfio-info",
+    .get = vfio_device_get,
+    .put = vfio_device_put,
+};
+
 static const VMStateDescription vfio_pci_vmstate = {
     .name = "vfio-pci",
-    .unmigratable = 1,
+    /* We MIGRATE vfio device, haha */
+    /* .unmigratable = 1, */
+    .fields = (VMStateField[]) {
+        VMSTATE_VFIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+   },
 };
 
 static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)

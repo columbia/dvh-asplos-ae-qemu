@@ -199,4 +199,11 @@ int vfio_spapr_create_window(VFIOContainer *container,
 int vfio_spapr_remove_window(VFIOContainer *container,
                              hwaddr offset_within_address_space);
 
+#define VMSTATE_VFIO_DEVICE \
+    {                                         \
+        .name = "vfio-vmstate",               \
+        .info = &vfio_vmstate_info,           \
+        .flags = VMS_SINGLE,                  \
+    }
+
 #endif /* HW_VFIO_VFIO_COMMON_H */
