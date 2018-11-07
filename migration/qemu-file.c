@@ -31,6 +31,8 @@
 #include "trace.h"
 
 #define IO_BUF_SIZE 32768
+/* This covers virtio-net device */
+#define DEV_BUF_SIZE 0x10000
 #define MAX_IOV_SIZE MIN(IOV_MAX, 64)
 
 struct QEMUFile {
@@ -52,6 +54,10 @@ struct QEMUFile {
     unsigned int iovcnt;
 
     int last_error;
+
+    bool in_memory;
+    uint8_t dev_buf[DEV_BUF_SIZE];
+    int64_t dev_buf_idx;
 };
 
 /*
@@ -60,6 +66,9 @@ struct QEMUFile {
  */
 int qemu_file_shutdown(QEMUFile *f)
 {
+    if (f->in_memory)
+        return 0;
+
     if (!f->ops->shut_down) {
         return -ENOSYS;
     }
@@ -178,6 +187,9 @@ void qemu_fflush(QEMUFile *f)
     ssize_t ret = 0;
     ssize_t expect = 0;
 
+    if (f->in_memory)
+        return;
+
     if (!qemu_file_is_writable(f)) {
         return;
     }
@@ -285,6 +297,11 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
     int len;
     int pending;
 
+    if (f->in_memory) {
+        printf("WARNING: %s not implemented for in-memory QEMU file\n", __func__);
+        return 0;
+    }
+
     assert(!qemu_file_is_writable(f));
 
     pending = f->buf_size - f->buf_index;
@@ -310,6 +327,9 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
 
 void qemu_update_position(QEMUFile *f, size_t size)
 {
+    if (f->in_memory) {
+        printf("WARNING: %s not implemented for in-memory QEMU file\n", __func__);
+    }
     f->pos += size;
 }
 
@@ -327,7 +347,7 @@ int qemu_fclose(QEMUFile *f)
     qemu_fflush(f);
     ret = qemu_file_get_error(f);
 
-    if (f->ops->close) {
+    if (f->ops && f->ops->close) {
         int ret2 = f->ops->close(f->opaque);
         if (ret >= 0) {
             ret = ret2;
@@ -347,6 +367,9 @@ int qemu_fclose(QEMUFile *f)
 static void add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
                          bool may_free)
 {
+    if (f->in_memory) {
+        printf("WARNING: %s not implemented for in-memory QEMU file\n", __func__);
+    }
     /* check for adjacent buffer and coalesce them */
     if (f->iovcnt > 0 && buf == f->iov[f->iovcnt - 1].iov_base +
         f->iov[f->iovcnt - 1].iov_len &&
@@ -369,6 +392,10 @@ static void add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
 void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size,
                            bool may_free)
 {
+    if (f->in_memory) {
+        printf("WARNING: %s not implemented for in-memory QEMU file\n", __func__);
+    }
+
     if (f->last_error) {
         return;
     }
@@ -382,6 +409,12 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
     size_t l;
 
     if (f->last_error) {
+        return;
+    }
+
+    if (f->in_memory) {
+        memcpy(f->dev_buf + f->dev_buf_idx , buf, size);
+        f->dev_buf_idx += size;
         return;
     }
 
@@ -411,6 +444,12 @@ void qemu_put_byte(QEMUFile *f, int v)
         return;
     }
 
+    if (f->in_memory) {
+        f->dev_buf[f->dev_buf_idx] = v;
+        f->dev_buf_idx++;
+        return;
+    }
+
     f->buf[f->buf_index] = v;
     f->bytes_xfer++;
     add_to_iovec(f, f->buf + f->buf_index, 1, false);
@@ -422,9 +461,15 @@ void qemu_put_byte(QEMUFile *f, int v)
 
 void qemu_file_skip(QEMUFile *f, int size)
 {
+    if (f->in_memory) {
+        f->dev_buf_idx += size;
+        return;
+    }
+
     if (f->buf_index + size <= f->buf_size) {
         f->buf_index += size;
     }
+
 }
 
 /*
@@ -439,6 +484,11 @@ size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset)
 {
     ssize_t pending;
     size_t index;
+
+    if (f->in_memory) {
+        *buf = f->dev_buf + f->dev_buf_idx + offset;
+        return size;
+    }
 
     assert(!qemu_file_is_writable(f));
     assert(offset < IO_BUF_SIZE);
@@ -488,6 +538,15 @@ size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size)
     size_t pending = size;
     size_t done = 0;
 
+    if (f->in_memory) {
+	/* XXX: we have to check if cur idx + size < total buf size.
+	 * it should be fine for our case since we know it's always true
+	 */
+        memcpy(buf, f->dev_buf + f->dev_buf_idx, size);
+        f->dev_buf_idx += size;
+        return size;
+    }
+
     while (pending > 0) {
         size_t res;
         uint8_t *src;
@@ -526,6 +585,10 @@ size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size)
  */
 size_t qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size)
 {
+
+    if (f->in_memory)
+        return qemu_get_buffer(f, *buf, size);
+
     if (size < IO_BUF_SIZE) {
         size_t res;
         uint8_t *src;
@@ -550,6 +613,10 @@ int qemu_peek_byte(QEMUFile *f, int offset)
 {
     int index = f->buf_index + offset;
 
+    if (f->in_memory) {
+        return f->dev_buf[f->dev_buf_idx + offset];
+    }
+
     assert(!qemu_file_is_writable(f));
     assert(offset < IO_BUF_SIZE);
 
@@ -567,6 +634,12 @@ int qemu_get_byte(QEMUFile *f)
 {
     int result;
 
+    if (f->in_memory) {
+        result = f->dev_buf[f->dev_buf_idx];
+        f->dev_buf_idx++;
+        return result;
+    }
+
     result = qemu_peek_byte(f, 0);
     qemu_file_skip(f, 1);
     return result;
@@ -576,6 +649,9 @@ int64_t qemu_ftell_fast(QEMUFile *f)
 {
     int64_t ret = f->pos;
     int i;
+
+    if (f->in_memory)
+        return f->dev_buf_idx;
 
     for (i = 0; i < f->iovcnt; i++) {
         ret += f->iov[i].iov_len;
@@ -587,6 +663,8 @@ int64_t qemu_ftell_fast(QEMUFile *f)
 int64_t qemu_ftell(QEMUFile *f)
 {
     qemu_fflush(f);
+    if (f->in_memory)
+        return f->dev_buf_idx;
     return f->pos;
 }
 
@@ -700,6 +778,11 @@ ssize_t qemu_put_compression_data(QEMUFile *f, z_stream *stream,
 {
     ssize_t blen = IO_BUF_SIZE - f->buf_index - sizeof(int32_t);
 
+    if (f->in_memory) {
+        printf("WARNING: %s not implemented for in-memory QEMU file\n", __func__);
+        return 0;
+    }
+
     if (blen < compressBound(size)) {
         if (!qemu_file_is_writable(f)) {
             return -1;
@@ -735,6 +818,11 @@ ssize_t qemu_put_compression_data(QEMUFile *f, z_stream *stream,
 int qemu_put_qemu_file(QEMUFile *f_des, QEMUFile *f_src)
 {
     int len = 0;
+
+    if (f_des->in_memory || f_src->in_memory) {
+        printf("WARNING: %s not implemented for in-memory QEMU file\n", __func__);
+        return 0;
+    }
 
     if (f_src->buf_index > 0) {
         len = f_src->buf_index;
@@ -786,4 +874,19 @@ void qemu_file_set_blocking(QEMUFile *f, bool block)
     if (f->ops->set_blocking) {
         f->ops->set_blocking(f->opaque, block);
     }
+}
+
+QEMUFile *create_mem_QEMUFile(void)
+{
+    QEMUFile *f;
+    f = g_new0(QEMUFile, 1);
+    if (f)
+        f->in_memory = 1;
+
+    return f;
+}
+
+uint8_t *qemu_get_dev_state(QEMUFile *f)
+{
+    return f->dev_buf;
 }
