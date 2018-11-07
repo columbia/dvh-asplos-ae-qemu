@@ -27,6 +27,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "migration/misc.h"
 #include "standard-headers/linux/ethtool.h"
+#include "hw/virtio/virtio-pci.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 
@@ -127,6 +128,18 @@ static void virtio_net_announce_timer(void *opaque)
     n->announce_counter--;
     n->status |= VIRTIO_NET_S_ANNOUNCE;
     virtio_notify_config(vdev);
+}
+
+void virtio_net_vhost_stop_force(void *opaque)
+{
+    VirtIONet *n = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    int queues = n->multiqueue ? n->max_queues : 1;
+
+    if (n->vhost_started) {
+        vhost_net_stop(vdev, n->nic->ncs, queues);
+        n->vhost_started = 0;
+    }
 }
 
 static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
