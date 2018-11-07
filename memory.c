@@ -1605,10 +1605,15 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr,
                                        uint64_t size,
                                        void *ptr)
 {
+    DeviceState *owner_dev;
+
     memory_region_init_ram_ptr(mr, owner, name, size, ptr);
     mr->ram_device = true;
     mr->ops = &ram_device_mem_ops;
     mr->opaque = mr;
+
+    owner_dev = DEVICE(owner);
+    vmstate_register_ram(mr, owner_dev);
 }
 
 void memory_region_init_alias(MemoryRegion *mr,

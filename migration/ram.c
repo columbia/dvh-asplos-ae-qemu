@@ -1844,6 +1844,9 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
     p = block->host + offset;
     trace_ram_save_page(block->idstr, (uint64_t)offset, p);
 
+    if (!strcmp(block->idstr, "0000:00:04.0/0000:01:00.0 BAR 4 mmaps[0]"))
+        return 1;
+
     XBZRLE_cache_lock();
     if (!rs->ram_bulk_stage && !migration_in_postcopy() &&
         migrate_use_xbzrle()) {
