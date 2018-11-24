@@ -776,8 +776,9 @@ err_features:
     return r;
 }
 
-static int __vhost_migration_log(struct vhost_dev *dev, int enable)
+int __vhost_migration_log(struct vhost_dev *dev, int enable)
 {
+    printf("%s with %d\n", __func__, enable);
     int r;
     if (!!enable == dev->log_enabled) {
         return 0;

@@ -120,4 +120,6 @@ int vhost_dev_set_config(struct vhost_dev *dev, const uint8_t *data,
  */
 void vhost_dev_set_config_notifier(struct vhost_dev *dev,
                                    const VhostDevConfigOps *ops);
+
+int __vhost_migration_log(struct vhost_dev *dev, int enable);
 #endif

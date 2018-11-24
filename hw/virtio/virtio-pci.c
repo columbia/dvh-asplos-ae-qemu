@@ -1327,6 +1327,8 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
 {
     VirtIOPCIProxy *proxy = opaque;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    VirtIONetPCI *vnet_pci;
+    VirtIONet *vnet;
 
     int offset;
 
@@ -1418,6 +1420,12 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         break;
     case VIRTIO_PCI_COMMON_STATE_RW:
         restore_device_state(proxy, val);
+        break;
+    case VIRTIO_PCI_COMMON_LOG:
+        printf("Assigned device logging: %d\n", (int)val);
+        vnet_pci = VIRTIO_NET_PCI(proxy);
+        vnet = &vnet_pci->vdev;
+        virtio_net_vhost_migration_log(vnet, val);
         break;
     case VIRTIO_PCI_COMMON_DEV_STATE_START ... VIRTIO_PCI_COMMON_DEV_STATE_END:
         offset = addr - VIRTIO_PCI_COMMON_DEV_STATE_START;

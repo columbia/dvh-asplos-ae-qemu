@@ -376,6 +376,18 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
     assert(r >= 0);
 }
 
+void vhost_net_migration_log(VirtIODevice *dev, NetClientState *ncs,
+                             int total_queues, int enable)
+{
+    struct vhost_dev *hdev;
+    int i;
+
+    for (i = 0; i < total_queues; i++) {
+        hdev = &get_vhost_net(ncs[i].peer)->dev;
+        __vhost_migration_log(hdev, enable);
+    }
+}
+
 void vhost_net_cleanup(struct vhost_net *net)
 {
     vhost_dev_cleanup(&net->dev);
