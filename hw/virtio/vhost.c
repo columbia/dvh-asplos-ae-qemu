@@ -776,10 +776,8 @@ err_features:
     return r;
 }
 
-static int vhost_migration_log(MemoryListener *listener, int enable)
+static int __vhost_migration_log(struct vhost_dev *dev, int enable)
 {
-    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
-                                         memory_listener);
     int r;
     if (!!enable == dev->log_enabled) {
         return 0;
@@ -803,6 +801,13 @@ static int vhost_migration_log(MemoryListener *listener, int enable)
     }
     dev->log_enabled = enable;
     return 0;
+}
+
+static int vhost_migration_log(MemoryListener *listener, int enable)
+{
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         memory_listener);
+    return __vhost_migration_log(dev, enable);
 }
 
 static void vhost_log_global_start(MemoryListener *listener)
