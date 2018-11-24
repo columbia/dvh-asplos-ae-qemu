@@ -716,11 +716,7 @@ static void vfio_log_start(MemoryListener *listener,
                            MemoryRegionSection *section,
                            int old, int new)
 {
-    if (old != 0)
-        return;
-
-    vfio_listener_region_del(listener, section);
-    __vfio_listener_region_add(listener, section, true);
+    ;
 }
 
 static void vfio_log_stop(MemoryListener *listener,
