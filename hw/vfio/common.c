@@ -734,7 +734,17 @@ static void vfio_log_sync(MemoryListener *listener,
 
 static void vfio_log_global_start(MemoryListener *listener)
 {
-    ;
+    VFIOGroup *group;
+    VFIODevice *vbasedev;
+    int enable = 1;
+
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        QLIST_FOREACH(vbasedev, &group->device_list, next) {
+            if (vbasedev->dev->realized && vbasedev->ops->vfio_log) {
+                vbasedev->ops->vfio_log(vbasedev, enable);
+            }
+        }
+    }
 }
 
 static void vfio_log_global_stop(MemoryListener *listener)

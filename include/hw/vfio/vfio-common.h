@@ -126,6 +126,7 @@ struct VFIODeviceOps {
     void (*vfio_compute_needs_reset)(VFIODevice *vdev);
     int (*vfio_hot_reset_multi)(VFIODevice *vdev);
     void (*vfio_eoi)(VFIODevice *vdev);
+    void (*vfio_log)(VFIODevice *vdev, int enable);
 };
 
 typedef struct VFIOGroup {

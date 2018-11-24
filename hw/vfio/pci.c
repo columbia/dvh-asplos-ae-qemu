@@ -107,6 +107,20 @@ static void vfio_intx_eoi(VFIODevice *vbasedev)
     vfio_unmask_single_irqindex(vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
 }
 
+static void vfio_pci_log(VFIODevice *vbasedev, int enable)
+{
+    off_t bar_offset = 0x40000000000;
+    int ret;
+    int size = 4;
+
+    ret = pwrite(vbasedev->fd, &enable, size, bar_offset + VIRTIO_PCI_COMMON_STATE_LOG);
+    if (ret != size) {
+        printf("Fail to start/stop logging: enable: %d ret: %d\n", enable, ret);
+    } else {
+        printf("Start/stop logging: enable: %d\n", enable);
+    }
+}
+
 static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
 {
 #ifdef CONFIG_KVM
@@ -2445,6 +2459,7 @@ static VFIODeviceOps vfio_pci_ops = {
     .vfio_compute_needs_reset = vfio_pci_compute_needs_reset,
     .vfio_hot_reset_multi = vfio_pci_hot_reset_multi,
     .vfio_eoi = vfio_intx_eoi,
+    .vfio_log = vfio_pci_log,
 };
 
 int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
