@@ -1165,6 +1165,43 @@ static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
     return offset;
 }
 
+static uint32_t save_device_state(VirtIOPCIProxy *proxy)
+{
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    SaveStateEntry *se;
+    QEMUFile *f;
+    uint32_t val = 0;
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    DeviceClass *dc = DEVICE_CLASS(vdc);
+    int dev_state_size;
+    int ret;
+
+    se = qemu_savevm_get_se(dc->vmsd);
+    if (!se) {
+        printf("WARNING: can't find device %s", dc->vmsd->name);
+        return 0;
+    }
+
+    /* Stop vhost to sync in-kernel state to userspace */
+    virtio_net_vhost_stop_force(vdev);
+
+    f = create_mem_QEMUFile();
+    if (!f)
+        error_report("unable to create in-memory QEMU file");
+
+    ret = qemu_savevm_save_device_state(f, se, &dev_state_size);
+    if (!ret) {
+        memcpy(proxy->dev_state, qemu_get_dev_state(f), dev_state_size);
+        val = dev_state_size;
+    } else {
+        printf("WARNING: virtio dev state save is failed: %d.\n", ret);
+        val = 0;
+    }
+
+    qemu_fclose(f);
+    return val;
+}
+
 static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
                                        unsigned size)
 {
@@ -1172,12 +1209,6 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     uint32_t val = 0;
     int i;
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
-    DeviceClass *dc = DEVICE_CLASS(vdc);
-    SaveStateEntry *se;
-    QEMUFile *f;
-    int ret;
-    int dev_state_size;
     int offset;
 
     switch (addr) {
@@ -1251,30 +1282,7 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
         val = proxy->vqs[vdev->queue_sel].used[1];
         break;
     case VIRTIO_PCI_COMMON_STATE_RW:
-        se = qemu_savevm_get_se(dc->vmsd);
-        if (!se) {
-            printf("WARNING: can't find device %s", dc->vmsd->name);
-            val = 0;
-            break;
-        }
-
-        /* Stop vhost to sync in-kernel state to userspace */
-        virtio_net_vhost_stop_force(vdev);
-
-        f = create_mem_QEMUFile();
-        if (!f)
-            error_report("unable to create in-memory QEMU file");
-
-        ret = qemu_savevm_save_device_state(f, se, &dev_state_size);
-        if (!ret) {
-            memcpy(proxy->dev_state, qemu_get_dev_state(f), dev_state_size);
-            val = dev_state_size;
-        } else {
-            printf("WARNING: virtio dev state save is failed: %d.\n", ret);
-            val = 0;
-        }
-
-        qemu_fclose(f);
+        val = save_device_state(proxy);
         break;
     case VIRTIO_PCI_COMMON_DEV_STATE_START ... VIRTIO_PCI_COMMON_DEV_STATE_END:
         offset = addr -VIRTIO_PCI_COMMON_DEV_STATE_START;
@@ -1288,16 +1296,39 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
     return val;
 }
 
+static void restore_device_state(VirtIOPCIProxy *proxy, uint64_t val)
+{
+    QEMUFile *f;
+    uint8_t section_type;
+    int ret;
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    f = create_mem_QEMUFile();
+    if (!f)
+        error_report("unable to create in-memory QEMU file");
+
+    memcpy(qemu_get_dev_state(f), proxy->dev_state, val);
+
+    section_type = qemu_get_byte(f);
+    if (section_type != QEMU_VM_SECTION_FULL)
+        printf("WARNING: section type is not FULL: %d\n", section_type);
+    ret = qemu_loadvm_section_start_full(f, NULL);
+    if (ret < 0)
+        printf("WARNING: Restoring virtio device state is failed\n");
+
+    /* Set virtio status so that QEMU keeps listening to tap device */
+    virtio_set_status(vdev, vdev->status);
+
+    qemu_fclose(f);
+}
+
 static void virtio_pci_common_write(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
     VirtIOPCIProxy *proxy = opaque;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
-    QEMUFile *f;
-    int ret;
     int offset;
-    uint8_t section_type;
 
     switch (addr) {
     case VIRTIO_PCI_COMMON_DFSELECT:
@@ -1386,23 +1417,7 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         proxy->vqs[vdev->queue_sel].used[1] = val;
         break;
     case VIRTIO_PCI_COMMON_STATE_RW:
-        f = create_mem_QEMUFile();
-        if (!f)
-            error_report("unable to create in-memory QEMU file");
-
-        memcpy(qemu_get_dev_state(f), proxy->dev_state, val);
-
-        section_type = qemu_get_byte(f);
-        if (section_type != QEMU_VM_SECTION_FULL)
-            printf("WARNING: section type is not FULL: %d\n", section_type);
-        ret = qemu_loadvm_section_start_full(f, NULL);
-        if (ret < 0)
-            printf("WARNING: Restoring virtio device state is failed\n");
-
-        /* Set virtio status so that QEMU keeps listening to tap device */
-        virtio_set_status(vdev, vdev->status);
-
-        qemu_fclose(f);
+        restore_device_state(proxy, val);
         break;
     case VIRTIO_PCI_COMMON_DEV_STATE_START ... VIRTIO_PCI_COMMON_DEV_STATE_END:
         offset = addr - VIRTIO_PCI_COMMON_DEV_STATE_START;
