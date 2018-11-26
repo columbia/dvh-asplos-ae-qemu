@@ -1288,6 +1288,12 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
         offset = addr -VIRTIO_PCI_COMMON_DEV_STATE_START;
         memcpy(&val, &proxy->dev_state[offset], size);
         break;
+    case VIRTIO_PCI_COMMON_LOG_BUF_START ... VIRTIO_PCI_COMMON_LOG_BUF_END:
+        offset = addr -VIRTIO_PCI_COMMON_LOG_BUF_START;
+        assert(addr + size < VIRTIO_PCI_COMMON_LOG_BUF_END + 1);
+        memcpy(&val, &proxy->log[offset], size);
+        memset(&proxy->log[offset], 0, size);
+        break;
 
     default:
         val = 0;
@@ -1430,6 +1436,9 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
     case VIRTIO_PCI_COMMON_DEV_STATE_START ... VIRTIO_PCI_COMMON_DEV_STATE_END:
         offset = addr - VIRTIO_PCI_COMMON_DEV_STATE_START;
         memcpy(&proxy->dev_state[offset], &val, size);
+        break;
+    case VIRTIO_PCI_COMMON_LOG_BUF_START ... VIRTIO_PCI_COMMON_LOG_BUF_END:
+        printf("WARNING: No write to log buf is allowed \n");
         break;
 
     default:
@@ -1845,7 +1854,7 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     proxy->common.offset = 0x0;
     /* Add 0x10000 to save device state */
-    proxy->common.size = 0x1000 + DEV_BUF_SIZE;
+    proxy->common.size = 0x1000 + DEV_BUF_SIZE + LOG_BUF_SIZE;
     proxy->common.type = VIRTIO_PCI_CAP_COMMON_CFG;
 
     proxy->isr.offset = proxy->common.offset + proxy->common.size;

@@ -158,6 +158,7 @@ typedef struct VirtIOPCIQueue {
 
 /* This covers virtio-net device */
 #define DEV_BUF_SIZE 0x10000
+#define LOG_BUF_SIZE 0x10000
 struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     MemoryRegion bar;
@@ -194,6 +195,7 @@ struct VirtIOPCIProxy {
     VirtioBusState bus;
 
     uint8_t dev_state[DEV_BUF_SIZE];
+    uint8_t log[LOG_BUF_SIZE];
 };
 
 static inline bool virtio_pci_modern(VirtIOPCIProxy *proxy)
