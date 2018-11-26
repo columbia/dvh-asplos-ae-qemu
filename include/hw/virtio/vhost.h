@@ -112,6 +112,7 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
                           struct vhost_vring_file *file);
 
 int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write);
+
 int vhost_dev_get_config(struct vhost_dev *dev, uint8_t *config,
                          uint32_t config_len);
 int vhost_dev_set_config(struct vhost_dev *dev, const uint8_t *data,
@@ -120,4 +121,5 @@ int vhost_dev_set_config(struct vhost_dev *dev, const uint8_t *data,
  */
 void vhost_dev_set_config_notifier(struct vhost_dev *dev,
                                    const VhostDevConfigOps *ops);
+
 #endif

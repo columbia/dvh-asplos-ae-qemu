@@ -34,6 +34,7 @@
 #include "pci.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "hw/virtio/vhost.h"
 
 #include "standard-headers/linux/virtio_pci.h"
 
@@ -119,6 +120,37 @@ static void vfio_pci_log(VFIODevice *vbasedev, int enable)
     } else {
         printf("Start/stop logging: enable: %d\n", enable);
     }
+}
+
+static void vfio_sync_dirty_bitmap(struct vhost_dev *dev,
+                                   MemoryRegionSection *section,
+                                   hwaddr first,
+                                   hwaddr last)
+{
+    hwaddr start_addr;
+    hwaddr end_addr;
+
+    if (!dev->log_enabled || !dev->started)
+        return;
+    start_addr = section->offset_within_address_space;
+    end_addr = range_get_last(start_addr, int128_get64(section->size));
+    start_addr = MAX(first, start_addr);
+    end_addr = MIN(last, end_addr);
+
+    vhost_dev_sync_region(dev, section, start_addr, end_addr, start_addr, end_addr);
+}
+
+static void vfio_pci_log_sync(VFIODevice *vbasedev, MemoryRegionSection *section)
+{
+    struct vhost_dev dev = {};
+
+    printf("TODO: enable log once we got the dirty bitmap.\n");
+    printf("Keep it disabled until then\n");
+    dev.log_enabled = 0;
+    dev.started = 1;
+
+    /* TODO: set dev->log and size */
+    vfio_sync_dirty_bitmap(&dev, section, 0x0, ~0x0ULL);
 }
 
 static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
@@ -2460,6 +2492,7 @@ static VFIODeviceOps vfio_pci_ops = {
     .vfio_hot_reset_multi = vfio_pci_hot_reset_multi,
     .vfio_eoi = vfio_intx_eoi,
     .vfio_log = vfio_pci_log,
+    .vfio_log_sync = vfio_pci_log_sync,
 };
 
 int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
