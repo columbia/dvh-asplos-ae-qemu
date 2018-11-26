@@ -153,6 +153,17 @@ void virtio_net_vhost_migration_log(void *opaque, int enable)
     }
 }
 
+void virtio_net_vhost_log_sync(void *opaque, uint8_t *log_base)
+{
+    VirtIONet *n = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    int queues = n->multiqueue ? n->max_queues : 1;
+
+    if (n->vhost_started) {
+        vhost_net_log_sync(vdev, n->nic->ncs, queues, log_base);
+    }
+}
+
 static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);

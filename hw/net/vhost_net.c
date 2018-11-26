@@ -388,6 +388,18 @@ void vhost_net_migration_log(VirtIODevice *dev, NetClientState *ncs,
     }
 }
 
+void vhost_net_log_sync(VirtIODevice *dev, NetClientState *ncs,
+                        int total_queues, uint8_t *log_base)
+{
+    struct vhost_dev *hdev;
+    int i;
+
+    for (i = 0; i < total_queues; i++) {
+        hdev = &get_vhost_net(ncs[i].peer)->dev;
+        __vhost_log_sync(hdev, log_base);
+    }
+}
+
 void vhost_net_cleanup(struct vhost_net *net)
 {
     vhost_dev_cleanup(&net->dev);

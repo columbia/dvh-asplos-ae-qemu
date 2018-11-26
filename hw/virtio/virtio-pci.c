@@ -1433,6 +1433,11 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         vnet = &vnet_pci->vdev;
         virtio_net_vhost_migration_log(vnet, val);
         break;
+    case VIRTIO_PCI_COMMON_LOG_SYNC:
+        printf("Assigned device sync\n");
+        vnet= &VIRTIO_NET_PCI(proxy)->vdev;
+        virtio_net_vhost_log_sync(vnet, proxy->log);
+        break;
     case VIRTIO_PCI_COMMON_DEV_STATE_START ... VIRTIO_PCI_COMMON_DEV_STATE_END:
         offset = addr - VIRTIO_PCI_COMMON_DEV_STATE_START;
         memcpy(&proxy->dev_state[offset], &val, size);

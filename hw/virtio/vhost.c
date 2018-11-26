@@ -137,12 +137,40 @@ static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
     return 0;
 }
 
-static void vhost_log_sync(MemoryListener *listener,
-                          MemoryRegionSection *section)
+void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base)
 {
+
+    vhost_log_chunk_t *log = dev->log->log;
+    vhost_log_chunk_t *log_curr = (vhost_log_chunk_t *)log_base;
+    vhost_log_chunk_t *from = log;
+    vhost_log_chunk_t *to = log + 0x10000;
+    uint64_t addr = 0;
+
+    for (;from < to; ++from, ++log_curr) {
+        vhost_log_chunk_t log;
+        /* We first check with non-atomic: much cheaper,
+         * and we expect non-dirty to be the common case. */
+        if (!*from) {
+            addr += VHOST_LOG_CHUNK;
+            log_curr = 0;
+            continue;
+        }
+        /* Data must be read atomically. We don't really need barrier semantics
+         * but it's easier to use atomic_* than roll our own. */
+        log = atomic_xchg(from, 0);
+        if (log)
+            *log_curr = log;
+        addr += VHOST_LOG_CHUNK;
+    }
+}
+
+static void vhost_log_sync(MemoryListener *listener,
+                          MemoryRegionSection *section) {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
+
     vhost_sync_dirty_bitmap(dev, section, 0x0, ~0x0ULL);
+
 }
 
 static void vhost_log_sync_range(struct vhost_dev *dev,

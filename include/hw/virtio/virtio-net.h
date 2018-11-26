@@ -110,4 +110,5 @@ void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
 
 void virtio_net_vhost_stop_force(void *opaque);
 void virtio_net_vhost_migration_log(void *opaque, int enable);
+void virtio_net_vhost_log_sync(void *opaque, uint8_t *log_base);
 #endif

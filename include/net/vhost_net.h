@@ -24,6 +24,8 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs, int total_queues);
 void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs, int total_queues);
 void vhost_net_migration_log(VirtIODevice *dev, NetClientState *ncs,
                              int total_queues, int enable);
+void vhost_net_log_sync(VirtIODevice *dev, NetClientState *ncs,
+                        int total_queues, uint8_t *log_base);
 
 void vhost_net_cleanup(VHostNetState *net);
 
