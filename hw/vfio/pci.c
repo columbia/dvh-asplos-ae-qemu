@@ -144,9 +144,7 @@ static void vfio_pci_log_sync(VFIODevice *vbasedev, MemoryRegionSection *section
 {
     struct vhost_dev dev = {};
 
-    printf("TODO: enable log once we got the dirty bitmap.\n");
-    printf("Keep it disabled until then\n");
-    dev.log_enabled = 0;
+    dev.log_enabled = 1;
     dev.started = 1;
 
     /* TODO: set dev->log and size */
