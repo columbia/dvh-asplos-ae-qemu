@@ -130,6 +130,7 @@ static void vfio_sync_dirty_bitmap(struct vhost_dev *dev,
     hwaddr start_addr;
     hwaddr end_addr;
 
+    printf("%s is called\n", __func__);
     if (!dev->log_enabled || !dev->started)
         return;
     start_addr = section->offset_within_address_space;
@@ -143,12 +144,48 @@ static void vfio_sync_dirty_bitmap(struct vhost_dev *dev,
 static void vfio_pci_log_sync(VFIODevice *vbasedev, MemoryRegionSection *section)
 {
     struct vhost_dev dev = {};
+    struct vhost_log log = {};
+    off_t bar_offset = 0x40000000000;
+    off_t offset;
+    int size;
+    int dummy = 0;
+    int fd = vbasedev->fd;
+    int ret;
 
+    printf("%s is called\n", __func__);
+    log.log = g_malloc0(LOG_BUF_SIZE);
+
+    /* log.size: how many of vhost_log_chunk_t is required */
+    log.size = LOG_BUF_SIZE / 8;
+    log.refcnt = 1;
+    log.fd = -1;
+
+    dev.log = &log;
     dev.log_enabled = 1;
     dev.started = 1;
+    dev.log_size = LOG_BUF_SIZE / 8;
 
-    /* TODO: set dev->log and size */
-    vfio_sync_dirty_bitmap(&dev, section, 0x0, ~0x0ULL);
+    /* Ask the device to sync the log into readable space.
+     * This in fact doesn't make much sense, though.
+     */
+    offset = bar_offset + VIRTIO_PCI_COMMON_STATE_LOG_SYNC;
+    size = 4;
+    ret = pwrite(fd, &dummy, size, offset);
+    if (ret != size) {
+        printf("Fail to sync vfio log. ret: %d instead of %d\n", ret, size);
+        return;
+    }
+
+    /* read the log from the vhost device */
+    offset = bar_offset + VIRTIO_PCI_COMMON_LOG_BUF_START;
+    ret = pread(fd, log.log, LOG_BUF_SIZE, offset);
+    if (ret != LOG_BUF_SIZE) {
+        printf("Reading vfio log is incomplete: ret: 0x%x instead of 0x%x\n",
+               ret, LOG_BUF_SIZE);
+    }
+
+    vfio_sync_dirty_bitmap(&dev, section, 0x0, LOG_BUF_SIZE*8);
+    g_free(log.log);
 }
 
 static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)

@@ -195,9 +195,16 @@ struct virtio_pci_cfg_cap {
 #define VIRTIO_PCI_COMMON_Q_USEDHI	52
 #define VIRTIO_PCI_COMMON_STATE_RW  56
 #define VIRTIO_PCI_COMMON_STATE_LOG 60
-/* Dev state is saved from 0x1000 to 0x11000 */
+#define VIRTIO_PCI_COMMON_STATE_LOG_SYNC 64
+/* Dev state is saved from 0x1000 to (0x11000 - 1) */
+#define DEV_BUF_SIZE    0x10000
+/* Dirty log is saved from 0x11000 to (0x91000 - 1) */
+/* We need 0x60 000 to cover 12G, but give some more space */
+#define LOG_BUF_SIZE    0x80000
 #define VIRTIO_PCI_COMMON_DEV_STATE_START 0x1000
-#define VIRTIO_PCI_COMMON_DEV_STATE_END 0x11000
+#define VIRTIO_PCI_COMMON_DEV_STATE_END (VIRTIO_PCI_COMMON_DEV_STATE_START + DEV_BUF_SIZE - 1)
+#define VIRTIO_PCI_COMMON_LOG_BUF_START (VIRTIO_PCI_COMMON_DEV_STATE_END + 1)
+#define VIRTIO_PCI_COMMON_LOG_BUF_END   (VIRTIO_PCI_COMMON_LOG_BUF_START + LOG_BUF_SIZE - 1)
 
 #endif /* VIRTIO_PCI_NO_MODERN */
 
