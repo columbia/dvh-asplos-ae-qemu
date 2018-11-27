@@ -143,7 +143,7 @@ void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base)
     vhost_log_chunk_t *log = dev->log->log;
     vhost_log_chunk_t *log_curr = (vhost_log_chunk_t *)log_base;
     vhost_log_chunk_t *from = log;
-    vhost_log_chunk_t *to = log + 0x10000;
+    vhost_log_chunk_t *to = log + 0x10000 / 8;
     uint64_t addr = 0;
 
     for (;from < to; ++from, ++log_curr) {

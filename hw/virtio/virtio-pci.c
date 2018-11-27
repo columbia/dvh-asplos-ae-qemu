@@ -1289,8 +1289,9 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
         memcpy(&val, &proxy->dev_state[offset], size);
         break;
     case VIRTIO_PCI_COMMON_LOG_BUF_START ... VIRTIO_PCI_COMMON_LOG_BUF_END:
-        offset = addr -VIRTIO_PCI_COMMON_LOG_BUF_START;
-        assert(addr + size < VIRTIO_PCI_COMMON_LOG_BUF_END + 1);
+        offset = addr - VIRTIO_PCI_COMMON_LOG_BUF_START;
+        /* e.g. TotalSize: 4 END: 3, offset: 0, size: 4, which is a valid request */
+        assert(offset + size < VIRTIO_PCI_COMMON_LOG_BUF_END + 1);
         memcpy(&val, &proxy->log[offset], size);
         memset(&proxy->log[offset], 0, size);
         break;
