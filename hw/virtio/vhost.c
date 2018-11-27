@@ -144,7 +144,7 @@ void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base)
     vhost_log_chunk_t *log = dev->log->log;
     vhost_log_chunk_t *log_curr = (vhost_log_chunk_t *)log_base;
     vhost_log_chunk_t *from = log;
-    vhost_log_chunk_t *to = log + 0x10000 / 8;
+    vhost_log_chunk_t *to = log + LOG_BUF_SIZE / 8;
     uint64_t addr = 0;
 
     for (;from < to; ++from, ++log_curr) {
@@ -153,14 +153,17 @@ void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base)
          * and we expect non-dirty to be the common case. */
         if (!*from) {
             addr += VHOST_LOG_CHUNK;
-            log_curr = 0;
+            *log_curr = 0;
             continue;
         }
         /* Data must be read atomically. We don't really need barrier semantics
          * but it's easier to use atomic_* than roll our own. */
         log = atomic_xchg(from, 0);
-        if (log)
+        if (log) {
+            printf("copy to log_curr. addr: %lx, log_curr: %p\n", addr, log_curr);
             *log_curr = log;
+            printf("copy done\n");
+        }
         addr += VHOST_LOG_CHUNK;
     }
 }
@@ -223,6 +226,7 @@ static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
         memset(log->log, 0, logsize);
     } else {
         log->log = g_malloc0(logsize);
+        printf("Alloc 0x%lxB for vhost log\n", logsize);
     }
 
     log->size = size;
