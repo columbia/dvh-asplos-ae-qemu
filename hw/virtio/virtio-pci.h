@@ -31,6 +31,8 @@
 #include "hw/virtio/vhost-user-blk.h"
 #endif
 
+#include "dirty.h"
+
 #ifdef CONFIG_VIRTFS
 #include "hw/9pfs/virtio-9p.h"
 #endif
@@ -158,7 +160,6 @@ typedef struct VirtIOPCIQueue {
 
 /* This covers virtio-net device */
 #define DEV_BUF_SIZE 0x10000
-#define LOG_BUF_SIZE 0x10000
 struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     MemoryRegion bar;

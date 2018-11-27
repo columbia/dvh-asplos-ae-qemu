@@ -28,6 +28,7 @@
 #include "migration/blocker.h"
 #include "sysemu/dma.h"
 #include "trace.h"
+#include "dirty.h"
 
 /* enabled until disconnected backend stabilizes */
 #define _VHOST_DEBUG 1

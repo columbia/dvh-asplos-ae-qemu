@@ -40,6 +40,7 @@
 #define _LINUX_VIRTIO_PCI_H
 
 #include "standard-headers/linux/types.h"
+#include "dirty.h"
 
 #ifndef VIRTIO_PCI_NO_LEGACY
 
@@ -198,8 +199,6 @@ struct virtio_pci_cfg_cap {
 #define VIRTIO_PCI_COMMON_LOG_SYNC  64
 /* Dev state is saved from 0x1000 to (0x11000 - 1) */
 #define DEV_BUF_SIZE    0x10000
-/* Dirty log is saved from 0x11000 to (0x21000 - 1) */
-#define LOG_BUF_SIZE    0x10000
 #define VIRTIO_PCI_COMMON_DEV_STATE_START 0x1000
 #define VIRTIO_PCI_COMMON_DEV_STATE_END (VIRTIO_PCI_COMMON_DEV_STATE_START + DEV_BUF_SIZE - 1)
 #define VIRTIO_PCI_COMMON_LOG_BUF_START (VIRTIO_PCI_COMMON_DEV_STATE_END + 1)
