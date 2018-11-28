@@ -1442,9 +1442,29 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
     case VIRTIO_PCI_COMMON_LOG_SYNC:
    //     printf("Assigned device sync\n");
         vnet= &VIRTIO_NET_PCI(proxy)->vdev;
+        /*
+        printf("Sync. start: %lx, end: %lx\n",
+                ((uint64_t)proxy->start_addr[1]) << 32 | proxy->start_addr[0],
+                ((uint64_t)proxy->end_addr[1]) << 32 | proxy->end_addr[0]);
+                */
         /* This copies from original vhost_log buffer to the device's log buffer */
-        virtio_net_vhost_log_sync(vnet, proxy->log);
+        virtio_net_vhost_log_sync(vnet, proxy->log,
+                ((uint64_t)proxy->start_addr[1]) << 32 | proxy->start_addr[0],
+                ((uint64_t)proxy->end_addr[1]) << 32 | proxy->end_addr[0]);
     //    printf("Assigned device sync done\n");
+        break;
+
+    case VIRTIO_PCI_COMMON_STATE_LOG_RANGE_START_LO:
+        proxy->start_addr[0] = val;
+        break;
+    case VIRTIO_PCI_COMMON_STATE_LOG_RANGE_START_HI:
+        proxy->start_addr[1] = val;
+        break;
+    case VIRTIO_PCI_COMMON_STATE_LOG_RANGE_END_LO:
+        proxy->end_addr[0] = val;
+        break;
+    case VIRTIO_PCI_COMMON_STATE_LOG_RANGE_END_HI:
+        proxy->end_addr[1] = val;
         break;
     case VIRTIO_PCI_COMMON_DEV_STATE_START ... VIRTIO_PCI_COMMON_DEV_STATE_END:
         offset = addr - VIRTIO_PCI_COMMON_DEV_STATE_START;

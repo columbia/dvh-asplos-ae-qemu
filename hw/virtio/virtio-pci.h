@@ -197,6 +197,8 @@ struct VirtIOPCIProxy {
 
     uint8_t dev_state[DEV_BUF_SIZE];
     uint8_t log[LOG_BUF_SIZE];
+    uint32_t start_addr[2];
+    uint32_t end_addr[2];
 };
 
 static inline bool virtio_pci_modern(VirtIOPCIProxy *proxy)

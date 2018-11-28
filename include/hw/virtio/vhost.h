@@ -122,5 +122,5 @@ void vhost_dev_set_config_notifier(struct vhost_dev *dev,
                                    const VhostDevConfigOps *ops);
 
 int __vhost_migration_log(struct vhost_dev *dev, int enable);
-void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base);
+void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base, hwaddr start, hwaddr end);
 #endif

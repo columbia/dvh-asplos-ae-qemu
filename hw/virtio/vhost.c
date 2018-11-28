@@ -138,17 +138,20 @@ static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
     return 0;
 }
 
-void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base)
+void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base, hwaddr start, hwaddr end)
 {
 
     vhost_log_chunk_t *log = dev->log->log;
-    vhost_log_chunk_t *log_curr = (vhost_log_chunk_t *)log_base;
-    vhost_log_chunk_t *from = log;
-    vhost_log_chunk_t *to = log + LOG_BUF_SIZE / 8;
-    uint64_t addr = 0;
+    vhost_log_chunk_t *log_curr;
+
+    vhost_log_chunk_t *from = log + start / VHOST_LOG_CHUNK;
+    vhost_log_chunk_t *to = log + end / VHOST_LOG_CHUNK + 1;
+
+    uint64_t addr = QEMU_ALIGN_DOWN(start, VHOST_LOG_CHUNK);
     uint8_t *baddr;
     int i = 0;
 
+    log_curr = (vhost_log_chunk_t *)log_base + start / VHOST_LOG_CHUNK;
     for (;from < to; ++from, ++log_curr) {
         vhost_log_chunk_t log;
         /* We first check with non-atomic: much cheaper,

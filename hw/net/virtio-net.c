@@ -153,14 +153,14 @@ void virtio_net_vhost_migration_log(void *opaque, int enable)
     }
 }
 
-void virtio_net_vhost_log_sync(void *opaque, uint8_t *log_base)
+void virtio_net_vhost_log_sync(void *opaque, uint8_t *log_base, hwaddr start, hwaddr end)
 {
     VirtIONet *n = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     int queues = n->multiqueue ? n->max_queues : 1;
 
     if (n->vhost_started) {
-        vhost_net_log_sync(vdev, n->nic->ncs, queues, log_base);
+        vhost_net_log_sync(vdev, n->nic->ncs, queues, log_base, start, end);
     }
 }
 
