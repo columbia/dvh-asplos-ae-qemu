@@ -151,6 +151,8 @@ static void vfio_pci_log_sync(VFIODevice *vbasedev, MemoryRegionSection *section
     int fd = vbasedev->fd;
     int ret;
     uint8_t tb[LOG_BUF_SIZE] = {};
+    hwaddr start_addr;
+    hwaddr end_addr;
 
     log.log = (vhost_log_chunk_t *)tb;
     /* log.size: how many of vhost_log_chunk_t is required */
@@ -163,6 +165,17 @@ static void vfio_pci_log_sync(VFIODevice *vbasedev, MemoryRegionSection *section
     dev.started = 1;
     dev.log_size = LOG_BUF_SIZE / 8;
 
+    start_addr = section->offset_within_address_space;
+    end_addr = range_get_last(start_addr, int128_get64(section->size));
+
+    offset = bar_offset + VIRTIO_PCI_COMMON_STATE_LOG_RANGE_START;
+    size = 8;
+    ret = pwrite(fd, &start_addr, size, offset);
+
+    offset = bar_offset + VIRTIO_PCI_COMMON_STATE_LOG_RANGE_END;
+    size = 8;
+    ret = pwrite(fd, &end_addr, size, offset);
+
     /* Ask the device to sync the log into readable space.
      * This in fact doesn't make much sense, though.
      */
@@ -174,13 +187,14 @@ static void vfio_pci_log_sync(VFIODevice *vbasedev, MemoryRegionSection *section
         return;
     }
 
+    //printf("Read from %lx to %lx, size: %lx\n", start_addr, end_addr, end_addr - start_addr);
     /* read the log from the vhost device */
-    offset = bar_offset + VIRTIO_PCI_COMMON_LOG_BUF_START;
-
-    ret = pread(fd, log.log, LOG_BUF_SIZE, offset);
-    if (ret != LOG_BUF_SIZE) {
+    offset = bar_offset + VIRTIO_PCI_COMMON_LOG_BUF_START + start_addr/4096/8;
+    size = (end_addr - start_addr)/4096/8;
+    ret = pread(fd, &tb[start_addr/4096/8], size, offset);
+    if (ret != size) {
         printf("Reading vfio log is incomplete: ret: 0x%x instead of 0x%x\n",
-               ret, LOG_BUF_SIZE);
+               ret, size);
     }
 
     vfio_sync_dirty_bitmap(&dev, section, 0x0, (hwaddr)LOG_BUF_SIZE*8*4096);

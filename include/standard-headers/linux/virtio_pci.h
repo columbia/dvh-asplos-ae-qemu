@@ -196,6 +196,9 @@ struct virtio_pci_cfg_cap {
 #define VIRTIO_PCI_COMMON_STATE_RW  56
 #define VIRTIO_PCI_COMMON_STATE_LOG 60
 #define VIRTIO_PCI_COMMON_STATE_LOG_SYNC 64
+#define VIRTIO_PCI_COMMON_STATE_LOG_RANGE_START 68
+#define VIRTIO_PCI_COMMON_STATE_LOG_RANGE_END 76
+/* Next one should be 84. */
 /* Dev state is saved from 0x1000 to (0x11000 - 1) */
 #define DEV_BUF_SIZE    0x10000
 /* Dirty log is saved from 0x11000 to (0x91000 - 1) */
