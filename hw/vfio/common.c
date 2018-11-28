@@ -732,7 +732,6 @@ static void vfio_log_sync(MemoryListener *listener,
     VFIOGroup *group;
     VFIODevice *vbasedev;
 
-    printf("%s is called\n", __func__);
     QLIST_FOREACH(group, &vfio_group_list, next) {
         QLIST_FOREACH(vbasedev, &group->device_list, next) {
             if (vbasedev->dev->realized && vbasedev->ops->vfio_log) {

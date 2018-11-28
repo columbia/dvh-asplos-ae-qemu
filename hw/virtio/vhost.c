@@ -96,6 +96,8 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
             hwaddr section_offset;
             hwaddr mr_offset;
             page_addr = addr + bit * VHOST_LOG_PAGE;
+            printf("0x%lx th var. %dth bit at addr 0x%lx\n",
+                   page_addr/VHOST_LOG_PAGE/8, bit%8, page_addr);
             section_offset = page_addr - section->offset_within_address_space;
             mr_offset = section_offset + section->offset_within_region;
             memory_region_set_dirty(section->mr, mr_offset, VHOST_LOG_PAGE);

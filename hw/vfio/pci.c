@@ -130,7 +130,6 @@ static void vfio_sync_dirty_bitmap(struct vhost_dev *dev,
     hwaddr start_addr;
     hwaddr end_addr;
 
-    printf("%s is called\n", __func__);
     if (!dev->log_enabled || !dev->started)
         return;
     start_addr = section->offset_within_address_space;
@@ -151,10 +150,9 @@ static void vfio_pci_log_sync(VFIODevice *vbasedev, MemoryRegionSection *section
     int dummy = 0;
     int fd = vbasedev->fd;
     int ret;
+    uint8_t tb[LOG_BUF_SIZE] = {};
 
-    printf("%s is called\n", __func__);
-    log.log = g_malloc0(LOG_BUF_SIZE);
-
+    log.log = (vhost_log_chunk_t *)tb;
     /* log.size: how many of vhost_log_chunk_t is required */
     log.size = LOG_BUF_SIZE / 8;
     log.refcnt = 1;
@@ -178,14 +176,14 @@ static void vfio_pci_log_sync(VFIODevice *vbasedev, MemoryRegionSection *section
 
     /* read the log from the vhost device */
     offset = bar_offset + VIRTIO_PCI_COMMON_LOG_BUF_START;
+
     ret = pread(fd, log.log, LOG_BUF_SIZE, offset);
     if (ret != LOG_BUF_SIZE) {
         printf("Reading vfio log is incomplete: ret: 0x%x instead of 0x%x\n",
                ret, LOG_BUF_SIZE);
     }
 
-    vfio_sync_dirty_bitmap(&dev, section, 0x0, LOG_BUF_SIZE*8);
-    g_free(log.log);
+    vfio_sync_dirty_bitmap(&dev, section, 0x0, (hwaddr)LOG_BUF_SIZE*8*4096);
 }
 
 static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
