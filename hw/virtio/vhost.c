@@ -146,6 +146,8 @@ void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base)
     vhost_log_chunk_t *from = log;
     vhost_log_chunk_t *to = log + LOG_BUF_SIZE / 8;
     uint64_t addr = 0;
+    uint8_t *baddr;
+    int i = 0;
 
     for (;from < to; ++from, ++log_curr) {
         vhost_log_chunk_t log;
@@ -160,9 +162,15 @@ void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base)
          * but it's easier to use atomic_* than roll our own. */
         log = atomic_xchg(from, 0);
         if (log) {
-            printf("copy to log_curr. addr: %lx, log_curr: %p\n", addr, log_curr);
+            baddr = (uint8_t *) &log;
+            for (i = 0; i < 8; i++) {
+                if (*baddr)
+                    printf("By vhost in kernel, 0x%lx var. val: 0x%x\n",
+                           addr/4096/8 + i, *baddr);
+                baddr++;
+            }
+
             *log_curr = log;
-            printf("copy done\n");
         }
         addr += VHOST_LOG_CHUNK;
     }
@@ -811,7 +819,6 @@ err_features:
 
 int __vhost_migration_log(struct vhost_dev *dev, int enable)
 {
-    printf("%s with %d\n", __func__, enable);
     int r;
     if (!!enable == dev->log_enabled) {
         return 0;

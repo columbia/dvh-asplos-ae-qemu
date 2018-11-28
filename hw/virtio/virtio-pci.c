@@ -1293,6 +1293,11 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
         /* e.g. TotalSize: 4 END: 3, offset: 0, size: 4, which is a valid request */
         assert(offset + size < VIRTIO_PCI_COMMON_LOG_BUF_END + 1);
         memcpy(&val, &proxy->log[offset], size);
+        if (val) {
+            //printf("Device log read: dirty bits in log addr %p\n", &proxy->log[offset]);
+            printf("Device log read: 0x%x var. val: 0x%x\n",
+                   offset, val);
+        }
         memset(&proxy->log[offset], 0, size);
         break;
 
@@ -1435,10 +1440,11 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         virtio_net_vhost_migration_log(vnet, val);
         break;
     case VIRTIO_PCI_COMMON_LOG_SYNC:
-        printf("Assigned device sync\n");
+   //     printf("Assigned device sync\n");
         vnet= &VIRTIO_NET_PCI(proxy)->vdev;
+        /* This copies from original vhost_log buffer to the device's log buffer */
         virtio_net_vhost_log_sync(vnet, proxy->log);
-        printf("Assigned device sync done\n");
+    //    printf("Assigned device sync done\n");
         break;
     case VIRTIO_PCI_COMMON_DEV_STATE_START ... VIRTIO_PCI_COMMON_DEV_STATE_END:
         offset = addr - VIRTIO_PCI_COMMON_DEV_STATE_START;
