@@ -1633,7 +1633,7 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
     }
 }
 
-static void migration_bitmap_sync(RAMState *rs)
+static void __migration_bitmap_sync(RAMState *rs, bool complete)
 {
     RAMBlock *block;
     int64_t end_time;
@@ -1723,6 +1723,12 @@ static int save_zero_page_to_file(RAMState *rs, QEMUFile *file,
     return len;
 }
 
+/* complete is set true when it is called while VM is stopped */
+/* We are going to use this flag only in vfio device */
+static void migration_bitmap_sync(RAMState *rs)
+{
+	__migration_bitmap_sync(rs, false);
+}
 /**
  * save_zero_page: send the zero page to the stream
  *
@@ -3301,7 +3307,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     rcu_read_lock();
 
     if (!migration_in_postcopy()) {
-        migration_bitmap_sync(rs);
+        __migration_bitmap_sync(rs, true);
     }
 
     ram_control_before_iterate(f, RAM_CONTROL_FINISH);
