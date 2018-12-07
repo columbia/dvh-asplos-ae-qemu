@@ -414,6 +414,7 @@ struct MemoryListener {
     void (*log_stop)(MemoryListener *listener, MemoryRegionSection *section,
                      int old, int new);
     void (*log_sync)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*log_sync_final)(MemoryListener *listener, MemoryRegionSection *section);
     void (*log_global_start)(MemoryListener *listener);
     void (*log_global_stop)(MemoryListener *listener);
     void (*eventfd_add)(MemoryListener *listener, MemoryRegionSection *section,
@@ -1660,6 +1661,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
  * Synchronizes the dirty page log for all address spaces.
  */
 void memory_global_dirty_log_sync(void);
+void memory_global_dirty_log_sync_final(void);
 
 /**
  * memory_region_transaction_begin: Start a transaction.
