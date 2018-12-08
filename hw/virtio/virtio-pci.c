@@ -1893,11 +1893,11 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     proxy->common.offset = 0x0;
     /* Add 0x10000 to save device state */
-    proxy->common.size = 0x1000 + DEV_BUF_SIZE + LOG_BUF_SIZE;
+    proxy->common.size = 0x1000 + DEV_BUF_SIZE;
     proxy->common.type = VIRTIO_PCI_CAP_COMMON_CFG;
 
     proxy->log_test.offset = proxy->common.offset + proxy->common.size;
-    proxy->log_test.size = 0x1000;
+    proxy->log_test.size = LOG_BUF_SIZE;
     proxy->log_test.type = VIRTIO_PCI_CAP_LOG_CFG;
 
     proxy->isr.offset = proxy->log_test.offset + proxy->log_test.size;
