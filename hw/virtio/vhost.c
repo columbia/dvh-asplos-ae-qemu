@@ -148,8 +148,6 @@ void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base, hwaddr start, hw
     vhost_log_chunk_t *to = log + end / VHOST_LOG_CHUNK + 1;
 
     uint64_t addr = QEMU_ALIGN_DOWN(start, VHOST_LOG_CHUNK);
-    uint8_t *baddr;
-    int i = 0;
 
     log_curr = (vhost_log_chunk_t *)log_base + start / VHOST_LOG_CHUNK;
     for (;from < to; ++from, ++log_curr) {
@@ -164,17 +162,8 @@ void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base, hwaddr start, hw
         /* Data must be read atomically. We don't really need barrier semantics
          * but it's easier to use atomic_* than roll our own. */
         log = atomic_xchg(from, 0);
-        if (log) {
-            baddr = (uint8_t *) &log;
-            for (i = 0; i < 8; i++) {
-                if (*baddr)
-                    printf("By vhost in kernel, 0x%lx var. val: 0x%x\n",
-                           addr/4096/8 + i, *baddr);
-                baddr++;
-            }
-
+        if (log)
             *log_curr = log;
-        }
         addr += VHOST_LOG_CHUNK;
     }
 }
