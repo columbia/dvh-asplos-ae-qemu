@@ -166,12 +166,13 @@ struct VirtIOPCIProxy {
     union {
         struct {
             VirtIOPCIRegion common;
+            VirtIOPCIRegion log_test;
             VirtIOPCIRegion isr;
             VirtIOPCIRegion device;
             VirtIOPCIRegion notify;
             VirtIOPCIRegion notify_pio;
         };
-        VirtIOPCIRegion regs[5];
+        VirtIOPCIRegion regs[6];
     };
     MemoryRegion modern_bar;
     MemoryRegion io_bar;

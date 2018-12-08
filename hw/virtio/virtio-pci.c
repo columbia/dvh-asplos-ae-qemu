@@ -1564,6 +1564,7 @@ static void virtio_pci_device_write(void *opaque, hwaddr addr,
 
 static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
 {
+    Error *err = NULL;
     static const MemoryRegionOps common_ops = {
         .read = virtio_pci_common_read,
         .write = virtio_pci_common_write,
@@ -1616,6 +1617,9 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
                           proxy,
                           "virtio-pci-common",
                           proxy->common.size);
+
+    memory_region_init_ram_nomigrate(&proxy->log_test.mr, OBJECT(proxy),
+		       "virtio-log_test", proxy->log_test.size, &err);
 
     memory_region_init_io(&proxy->isr.mr, OBJECT(proxy),
                           &isr_ops,
@@ -1782,6 +1786,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         virtio_pci_modern_regions_init(proxy);
 
         virtio_pci_modern_mem_region_map(proxy, &proxy->common, &cap);
+        virtio_pci_modern_mem_region_map(proxy, &proxy->log_test, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->isr, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->device, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->notify, &notify.cap);
@@ -1851,6 +1856,7 @@ static void virtio_pci_device_unplugged(DeviceState *d)
 
     if (modern) {
         virtio_pci_modern_mem_region_unmap(proxy, &proxy->common);
+        virtio_pci_modern_mem_region_unmap(proxy, &proxy->log_test);
         virtio_pci_modern_mem_region_unmap(proxy, &proxy->isr);
         virtio_pci_modern_mem_region_unmap(proxy, &proxy->device);
         virtio_pci_modern_mem_region_unmap(proxy, &proxy->notify);
@@ -1890,7 +1896,11 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     proxy->common.size = 0x1000 + DEV_BUF_SIZE + LOG_BUF_SIZE;
     proxy->common.type = VIRTIO_PCI_CAP_COMMON_CFG;
 
-    proxy->isr.offset = proxy->common.offset + proxy->common.size;
+    proxy->log_test.offset = proxy->common.offset + proxy->common.size;
+    proxy->log_test.size = 0x1000;
+    proxy->log_test.type = VIRTIO_PCI_CAP_LOG_CFG;
+
+    proxy->isr.offset = proxy->log_test.offset + proxy->log_test.size;
     proxy->isr.size = 0x1000;
     proxy->isr.type = VIRTIO_PCI_CAP_ISR_CFG;
 
