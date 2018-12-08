@@ -150,11 +150,10 @@ static void vfio_pci_log_sync(VFIODevice *vbasedev, MemoryRegionSection *section
     int dummy = 0;
     int fd = vbasedev->fd;
     int ret;
-    uint8_t tb[LOG_BUF_SIZE] = {};
     hwaddr start_addr;
     hwaddr end_addr;
+    uint8_t *dirty_log;
 
-    log.log = (vhost_log_chunk_t *)tb;
     /* log.size: how many of vhost_log_chunk_t is required */
     log.size = LOG_BUF_SIZE / 8;
     log.refcnt = 1;
@@ -187,17 +186,20 @@ static void vfio_pci_log_sync(VFIODevice *vbasedev, MemoryRegionSection *section
         return;
     }
 
-    //printf("Read from %lx to %lx, size: %lx\n", start_addr, end_addr, end_addr - start_addr);
-    /* read the log from the vhost device */
-    offset = bar_offset + VIRTIO_PCI_COMMON_LOG_BUF_START + start_addr/4096/8;
-    size = (end_addr - start_addr)/4096/8;
-    ret = pread(fd, &tb[start_addr/4096/8], size, offset);
-    if (ret != size) {
-        printf("Reading vfio log is incomplete: ret: 0x%x instead of 0x%x\n",
-               ret, size);
+    offset = bar_offset + VIRTIO_PCI_COMMON_LOG_BUF_START;
+    dirty_log = mmap(NULL, LOG_BUF_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+		     fd, offset);
+    if (dirty_log == MAP_FAILED) {
+	    printf("WARNING: can't do mmap for device dirty log\n");
+	    return;
     }
 
+    log.log = (vhost_log_chunk_t *)dirty_log;
+
+    /* We clear the log after processing it, so no further memset is required */
     vfio_sync_dirty_bitmap(&dev, section, 0x0, (hwaddr)LOG_BUF_SIZE*8*4096);
+
+    munmap(dirty_log, LOG_BUF_SIZE);
 }
 
 static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
