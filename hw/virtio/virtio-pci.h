@@ -196,7 +196,6 @@ struct VirtIOPCIProxy {
     int nvqs_with_notifiers;
     VirtioBusState bus;
 
-    uint8_t log[LOG_BUF_SIZE];
     uint32_t start_addr[2];
     uint32_t end_addr[2];
 };

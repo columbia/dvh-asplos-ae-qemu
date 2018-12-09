@@ -1209,7 +1209,6 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     uint32_t val = 0;
     int i;
-    int offset;
 
     switch (addr) {
     case VIRTIO_PCI_COMMON_DFSELECT:
@@ -1283,18 +1282,6 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
         break;
     case VIRTIO_PCI_COMMON_STATE_RW:
         val = save_device_state(proxy);
-        break;
-    case VIRTIO_PCI_COMMON_LOG_BUF_START ... VIRTIO_PCI_COMMON_LOG_BUF_END:
-        offset = addr - VIRTIO_PCI_COMMON_LOG_BUF_START;
-        /* e.g. TotalSize: 4 END: 3, offset: 0, size: 4, which is a valid request */
-        assert(offset + size < VIRTIO_PCI_COMMON_LOG_BUF_END + 1);
-        memcpy(&val, &proxy->log[offset], size);
-        if (val) {
-            //printf("Device log read: dirty bits in log addr %p\n", &proxy->log[offset]);
-            printf("Device log read: 0x%x var. val: 0x%x\n",
-                   offset, val);
-        }
-        memset(&proxy->log[offset], 0, size);
         break;
 
     default:
@@ -1442,7 +1429,7 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
                 ((uint64_t)proxy->end_addr[1]) << 32 | proxy->end_addr[0]);
                 */
         /* This copies from original vhost_log buffer to the device's log buffer */
-        virtio_net_vhost_log_sync(vnet, proxy->log,
+        virtio_net_vhost_log_sync(vnet, get_mr_host_addr(&proxy->log_test.mr) + DEV_BUF_SIZE,
                 ((uint64_t)proxy->start_addr[1]) << 32 | proxy->start_addr[0],
                 ((uint64_t)proxy->end_addr[1]) << 32 | proxy->end_addr[0]);
     //    printf("Assigned device sync done\n");
@@ -1459,9 +1446,6 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         break;
     case VIRTIO_PCI_COMMON_STATE_LOG_RANGE_END_HI:
         proxy->end_addr[1] = val;
-        break;
-    case VIRTIO_PCI_COMMON_LOG_BUF_START ... VIRTIO_PCI_COMMON_LOG_BUF_END:
-        printf("WARNING: No write to log buf is allowed \n");
         break;
 
     default:
