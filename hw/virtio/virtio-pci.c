@@ -1191,7 +1191,7 @@ static uint32_t save_device_state(VirtIOPCIProxy *proxy)
 
     ret = qemu_savevm_save_device_state(f, se, &dev_state_size);
     if (!ret) {
-        memcpy(proxy->dev_state, qemu_get_dev_state(f), dev_state_size);
+        memcpy(get_mr_host_addr(&proxy->log_test.mr), qemu_get_dev_state(f), dev_state_size);
         val = dev_state_size;
     } else {
         printf("WARNING: virtio dev state save is failed: %d.\n", ret);
@@ -1284,10 +1284,6 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
     case VIRTIO_PCI_COMMON_STATE_RW:
         val = save_device_state(proxy);
         break;
-    case VIRTIO_PCI_COMMON_DEV_STATE_START ... VIRTIO_PCI_COMMON_DEV_STATE_END:
-        offset = addr -VIRTIO_PCI_COMMON_DEV_STATE_START;
-        memcpy(&val, &proxy->dev_state[offset], size);
-        break;
     case VIRTIO_PCI_COMMON_LOG_BUF_START ... VIRTIO_PCI_COMMON_LOG_BUF_END:
         offset = addr - VIRTIO_PCI_COMMON_LOG_BUF_START;
         /* e.g. TotalSize: 4 END: 3, offset: 0, size: 4, which is a valid request */
@@ -1319,7 +1315,7 @@ static void restore_device_state(VirtIOPCIProxy *proxy, uint64_t val)
     if (!f)
         error_report("unable to create in-memory QEMU file");
 
-    memcpy(qemu_get_dev_state(f), proxy->dev_state, val);
+    memcpy(qemu_get_dev_state(f), get_mr_host_addr(&proxy->log_test.mr), val);
 
     section_type = qemu_get_byte(f);
     if (section_type != QEMU_VM_SECTION_FULL)
@@ -1341,8 +1337,6 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     VirtIONetPCI *vnet_pci;
     VirtIONet *vnet;
-
-    int offset;
 
     switch (addr) {
     case VIRTIO_PCI_COMMON_DFSELECT:
@@ -1465,10 +1459,6 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         break;
     case VIRTIO_PCI_COMMON_STATE_LOG_RANGE_END_HI:
         proxy->end_addr[1] = val;
-        break;
-    case VIRTIO_PCI_COMMON_DEV_STATE_START ... VIRTIO_PCI_COMMON_DEV_STATE_END:
-        offset = addr - VIRTIO_PCI_COMMON_DEV_STATE_START;
-        memcpy(&proxy->dev_state[offset], &val, size);
         break;
     case VIRTIO_PCI_COMMON_LOG_BUF_START ... VIRTIO_PCI_COMMON_LOG_BUF_END:
         printf("WARNING: No write to log buf is allowed \n");
@@ -1893,11 +1883,11 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     proxy->common.offset = 0x0;
     /* Add 0x10000 to save device state */
-    proxy->common.size = 0x1000 + DEV_BUF_SIZE;
+    proxy->common.size = 0x1000;
     proxy->common.type = VIRTIO_PCI_CAP_COMMON_CFG;
 
     proxy->log_test.offset = proxy->common.offset + proxy->common.size;
-    proxy->log_test.size = LOG_BUF_SIZE;
+    proxy->log_test.size = DEV_BUF_SIZE + LOG_BUF_SIZE;
     proxy->log_test.type = VIRTIO_PCI_CAP_LOG_CFG;
 
     proxy->isr.offset = proxy->log_test.offset + proxy->log_test.size;
