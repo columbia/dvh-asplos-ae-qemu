@@ -226,7 +226,8 @@
 #define  PCI_CAP_ID_SATA	0x12	/* SATA Data/Index Conf. */
 #define  PCI_CAP_ID_AF		0x13	/* PCI Advanced Features */
 #define  PCI_CAP_ID_EA		0x14	/* PCI Enhanced Allocation */
-#define  PCI_CAP_ID_MAX		PCI_CAP_ID_EA
+#define  PCI_CAP_ID_MI		0x15	/* PCI MIgration support*/
+#define  PCI_CAP_ID_MAX		PCI_CAP_ID_MI
 #define PCI_CAP_LIST_NEXT	1	/* Next capability in the list */
 #define PCI_CAP_FLAGS		2	/* Capability defined flags (16 bits) */
 #define PCI_CAP_SIZEOF		4
