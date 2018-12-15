@@ -38,6 +38,7 @@
 #include "qapi/visitor.h"
 #include "migration/savevm.h"
 #include "migration/qemu-file.h"
+#include "hw/pci/mi.h"
 
 #define VIRTIO_PCI_REGION_SIZE(dev)     VIRTIO_PCI_CONFIG_OFF(msix_present(dev))
 
@@ -1761,13 +1762,11 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 
         virtio_pci_modern_mem_region_map(proxy, &proxy->common, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->log_test, &cap);
+        migration_cap_init(&proxy->pci_dev, errp);
         virtio_pci_modern_mem_region_map(proxy, &proxy->isr, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->device, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->notify, &notify.cap);
 
-        pci_add_capability(&proxy->pci_dev, PCI_CAP_ID_MI, 0, 4, &error_abort);
-
-        migration_init(&proxy->pci_dev);
 
         if (modern_pio) {
             memory_region_init(&proxy->io_bar, OBJECT(proxy),
