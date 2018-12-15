@@ -1764,7 +1764,10 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         virtio_pci_modern_mem_region_map(proxy, &proxy->isr, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->device, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->notify, &notify.cap);
-    	pci_add_capability(&proxy->pci_dev, PCI_CAP_ID_MI, 0, 4, &error_abort);
+
+        pci_add_capability(&proxy->pci_dev, PCI_CAP_ID_MI, 0, 4, &error_abort);
+
+        migration_init(&proxy->pci_dev);
 
         if (modern_pio) {
             memory_region_init(&proxy->io_bar, OBJECT(proxy),

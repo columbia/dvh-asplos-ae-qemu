@@ -189,6 +189,8 @@ enum {
     QEMU_PCIE_LNKSTA_DLLLA = (1 << QEMU_PCIE_LNKSTA_DLLLA_BITNR),
 #define QEMU_PCIE_EXTCAP_INIT_BITNR 9
     QEMU_PCIE_EXTCAP_INIT = (1 << QEMU_PCIE_EXTCAP_INIT_BITNR),
+
+    QEMU_PCI_CAP_MI = (1 << 10 ),
 };
 
 #define TYPE_PCI_DEVICE "pci-device"
@@ -331,6 +333,9 @@ struct PCIDevice {
 
     /* Offset of MSI capability in config space */
     uint8_t msi_cap;
+
+    /* Offset of Migration capability in config space */
+    uint8_t migration_cap;
 
     /* PCI Express */
     PCIExpressDevice exp;
