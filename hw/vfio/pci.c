@@ -35,6 +35,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "hw/virtio/vhost.h"
+#include "migration/blocker.h"
 
 #include "standard-headers/linux/virtio_pci.h"
 
@@ -2913,6 +2914,11 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
+static int migration_enabled(PCIDevice *dev)
+{
+	return dev->cap_present & QEMU_PCI_CAP_MI;
+}
+
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = PCI_VFIO(pdev);
@@ -2925,6 +2931,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     int groupid;
     int i, ret;
     bool is_mdev;
+    Error *local_err = NULL;
 
     if (!vdev->vbasedev.sysfsdev) {
         if (!(~vdev->host.domain || ~vdev->host.bus ||
@@ -3123,6 +3130,18 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     if (vdev->vga) {
         vfio_vga_quirk_setup(vdev);
     }
+
+    if (!migration_enabled(pdev)) {
+	    error_setg(&vdev->migration_blocker,
+		       "Migration disabled: don't have migration capability");
+	    migrate_add_blocker(vdev->migration_blocker, &local_err);
+	    if (local_err) {
+		    error_report_err(local_err);
+		    error_free(vdev->migration_blocker);
+		    goto error;
+	    }
+    }
+
 
     for (i = 0; i < PCI_ROM_SLOT; i++) {
         vfio_bar_quirk_setup(vdev, i);
