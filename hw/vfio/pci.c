@@ -2063,6 +2063,8 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
     PCIDevice *pdev = &vdev->pdev;
     uint8_t cap_id, next, size;
     int ret;
+    int val;
+    int rr;
 
     cap_id = pdev->config[pos];
     next = pdev->config[pos + PCI_CAP_LIST_NEXT];
@@ -2126,7 +2128,14 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
         ret = pci_add_capability(pdev, cap_id, pos, size, errp);
         break;
     case PCI_CAP_ID_MI:
-	printf("Yeah! MI capability is found at 0x%x\n", pos);
+	printf("Yeah. MI capability is found at 0x%x\n", pos);
+	val = 0xdeed;
+	rr = pwrite(vdev->vbasedev.fd, &val, 4, vdev->config_offset + pos + 4);
+	if (rr != 4)
+		printf("wrte to migration cap spate failed, %d\n", rr);
+	else
+		printf("wrote 0x%x to log ctr reg, size: 4 offset: 0x%x \n", val, pos + 4);
+
         break;
     default:
         ret = pci_add_capability(pdev, cap_id, pos, size, errp);
