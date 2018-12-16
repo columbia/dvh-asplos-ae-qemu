@@ -2136,6 +2136,7 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
 	else
 		printf("wrote 0x%x to log ctr reg, size: 4 offset: 0x%x \n", val, pos + 4);
 
+	pdev->cap_present |= QEMU_PCI_CAP_MI;
         break;
     default:
         ret = pci_add_capability(pdev, cap_id, pos, size, errp);
