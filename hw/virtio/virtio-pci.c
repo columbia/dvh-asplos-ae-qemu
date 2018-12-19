@@ -32,6 +32,7 @@
 #include "hw/pci/msix.h"
 #include "hw/loader.h"
 #include "sysemu/kvm.h"
+#include "sysemu/sysemu.h"
 #include "virtio-pci.h"
 #include "qemu/range.h"
 #include "hw/virtio/virtio-bus.h"
@@ -1690,6 +1691,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
     uint8_t *config;
     uint32_t size;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    bool pci_registered;
 
     /*
      * Virtio capabilities present without
@@ -1821,6 +1823,10 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         pci_register_bar(&proxy->pci_dev, proxy->legacy_io_bar_idx,
                          PCI_BASE_ADDRESS_SPACE_IO, &proxy->bar);
     }
+
+    pci_registered = qemu_update_vm_change_state_handler_pci(vdev, &proxy->pci_dev);
+    if (!pci_registered)
+	    printf("Warning: pci opaque is not registered\n");
 }
 
 static void virtio_pci_device_unplugged(DeviceState *d)

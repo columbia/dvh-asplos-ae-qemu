@@ -28,8 +28,10 @@ typedef void VMChangeStateHandler(void *opaque, int running, RunState state);
 
 VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
                                                      void *opaque);
+bool qemu_update_vm_change_state_handler_pci(void *opaque, void *pci_opaque);
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
 void vm_state_notify(int running, RunState state);
+void vm_state_notify_one_pci(int running, RunState state, void *opaque);
 
 /* Enumeration of various causes for shutdown. */
 typedef enum ShutdownCause {
