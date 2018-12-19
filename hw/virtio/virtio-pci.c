@@ -1184,9 +1184,7 @@ static uint32_t save_device_state(VirtIOPCIProxy *proxy)
         return 0;
     }
 
-    /* Stop vhost to sync in-kernel state to userspace */
-    virtio_net_vhost_stop_force(vdev);
-
+    /* At this point, the device is stopped. */
     f = create_mem_QEMUFile();
     if (!f)
         error_report("unable to create in-memory QEMU file");

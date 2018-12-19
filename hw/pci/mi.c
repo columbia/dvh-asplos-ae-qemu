@@ -5,23 +5,57 @@
 #include "qemu/range.h"
 #include "qapi/error.h"
 #include "trace.h"
+#include "sysemu/sysemu.h"
 
 #define PCI_CAP_MI_SIZEOF 8
+#define PCI_MI_DEV_CTL 2
+#define PCI_MI_LOG_CTL 3
 static int migration_present(PCIDevice *dev)
 {
     return dev->cap_present & QEMU_PCI_CAP_MI;
+}
+
+static void restore_device_state(PCIDevice *dev) {
+    /* first we stop the device.
+     * vmstate (the first param) matters, but the second one doesn't for virtio*/
+    vm_state_notify_one_pci(1, RUN_STATE_RUNNING, (void *)dev);
+
+    /* TODO: restore device state */
+}
+
+static void save_device_state(PCIDevice *dev) {
+    /* first we stop the device.
+     * vmstate (the first param) matters, but the second one doesn't for virtio*/
+    vm_state_notify_one_pci(0, RUN_STATE_PAUSED, (void *)dev);
+
+    /* TODO: save device state */
 }
 
 void migration_write_config(PCIDevice *dev, uint32_t addr,
                             uint32_t val, int len)
 
 {
+    int offset;
+
     if (!migration_present(dev) ||
         !ranges_overlap(addr, len, dev->migration_cap, PCI_CAP_MI_SIZEOF)) {
         return;
     }
-    printf("migration_write: 0x%x at 0x%x (len: %d)\n", val, addr, len);
-    printf("TODO: handle control register write operation.\n");
+
+    offset = addr - dev->migration_cap;
+    switch (offset) {
+        case PCI_MI_DEV_CTL:
+            assert(len == 1);
+            if (val == 0)
+                save_device_state(dev);
+            else
+                restore_device_state(dev);
+            break;
+
+        default:
+            printf("offset 0x%x is not handled\n", offset);
+            ;
+    }
 }
 
 void migration_cap_init(PCIDevice *dev, Error **errp)
