@@ -3448,6 +3448,14 @@ static int vfio_load(VFIOPCIDevice *vdev, QEMUFile *f, int version_id)
         return -1;
     }
 
+    /* Start the device using migration cap */
+    val = 1;
+    ret = pwrite(vdev->vbasedev.fd, &val, 1, vdev->config_offset + vdev->mi_cap + 2);
+    if (ret != 1) {
+        printf("Fail to write mi cap dev ctl: %d\n", ret);
+        return -1;
+    }
+
     return 0;
 }
 
