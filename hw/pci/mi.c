@@ -16,8 +16,7 @@ static int migration_present(PCIDevice *dev)
 }
 
 static void restore_device_state(PCIDevice *dev) {
-    /* first we stop the device.
-     * vmstate (the first param) matters, but the second one doesn't for virtio*/
+    /* we are about to start the device */
     vm_state_notify_one_pci(1, RUN_STATE_RUNNING, (void *)dev);
 
     /* TODO: restore device state */

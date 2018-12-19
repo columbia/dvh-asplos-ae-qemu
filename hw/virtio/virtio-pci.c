@@ -1296,7 +1296,6 @@ static void restore_device_state(VirtIOPCIProxy *proxy, uint64_t val)
     QEMUFile *f;
     uint8_t section_type;
     int ret;
-    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
     f = create_mem_QEMUFile();
     if (!f)
@@ -1310,9 +1309,6 @@ static void restore_device_state(VirtIOPCIProxy *proxy, uint64_t val)
     ret = qemu_loadvm_section_start_full(f, NULL);
     if (ret < 0)
         printf("WARNING: Restoring virtio device state is failed\n");
-
-    /* Set virtio status so that QEMU keeps listening to tap device */
-    virtio_set_status(vdev, vdev->status);
 
     qemu_fclose(f);
 }
