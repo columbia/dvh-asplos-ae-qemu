@@ -3361,6 +3361,15 @@ static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
     /* XXX: We know that device state is saved in BAR4 of virtio device */
     off_t bar_offset = 0x40000000000;
     uint8_t dev_state[0x10000];
+    int val;
+
+    /* Stop the device first using migration cap */
+    val = 0;
+    ret = pwrite(vdev->vbasedev.fd, &val, 1, vdev->config_offset + vdev->mi_cap + 2);
+    if (ret != 1) {
+        printf("Fail to write mi cap dev ctl: %d\n", ret);
+        return -1;
+    }
 
     pci_device_save(pdev, f);
     msix_save(pdev, f);
