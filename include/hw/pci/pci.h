@@ -356,6 +356,11 @@ struct PCIDevice {
     MSIVectorUseNotifier msix_vector_use_notifier;
     MSIVectorReleaseNotifier msix_vector_release_notifier;
     MSIVectorPollNotifier msix_vector_poll_notifier;
+
+    /* Space to store migration info: addr, size, status */
+    uint8_t *migration_info;
+    MemoryRegion migration_info_mmio;
+    MemoryRegion migration_info_exclusive_bar;
 };
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,

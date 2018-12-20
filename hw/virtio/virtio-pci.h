@@ -198,6 +198,8 @@ struct VirtIOPCIProxy {
 
     uint32_t start_addr[2];
     uint32_t end_addr[2];
+
+    uint32_t mi_bar_idx;
 };
 
 static inline bool virtio_pci_modern(VirtIOPCIProxy *proxy)

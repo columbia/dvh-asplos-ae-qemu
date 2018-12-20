@@ -8,6 +8,7 @@
 #include "sysemu/sysemu.h"
 
 #define PCI_CAP_MI_SIZEOF 8
+#define PCI_MI_CONFIG 4
 #define PCI_MI_DEV_CTL 2
 #define PCI_MI_LOG_CTL 3
 #define PCI_MI_LOG_BADDR 4
@@ -92,3 +93,83 @@ void migration_cap_init(PCIDevice *dev, Error **errp)
     /* Write dummy data for test*/
     memset(dev->config + config_offset + 4, 0xbe, 4);
 }
+
+static uint64_t migration_mmio_read(void *opaque, hwaddr addr,
+                                    unsigned size)
+{
+    /* TODO */
+    return 0;
+}
+
+static void migration_mmio_write(void *opaque, hwaddr addr,
+                                 uint64_t val, unsigned size)
+{
+    /* TODO */
+    return;
+}
+
+static const MemoryRegionOps migration_info_mmio_ops = {
+    .read = migration_mmio_read,
+    .write = migration_mmio_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+int migration_cap_init_bar(struct PCIDevice *dev, MemoryRegion *cfg_bar,
+                           uint8_t cfg_bar_nr, unsigned cfg_offset,
+                           uint8_t cap_pos, Error **errp)
+{
+
+    int cap;
+    uint8_t *config;
+    unsigned migration_info_size = 64;
+
+    cap = pci_add_capability(dev, PCI_CAP_ID_MI, cap_pos, PCI_CAP_MI_SIZEOF, errp);
+
+    if (cap < 0) {
+        return cap;
+    }
+
+    dev->cap_present |= QEMU_PCI_CAP_MI;
+    dev->migration_cap = cap;
+    config = dev->config + cap;
+
+    pci_set_long(config + PCI_MI_CONFIG, cfg_offset | cfg_bar_nr);
+
+    dev->migration_info = g_malloc0(migration_info_size);
+
+    memory_region_init_io(&dev->migration_info_mmio, OBJECT(dev),
+                          &migration_info_mmio_ops, dev,
+                          "migration-info", migration_info_size);
+    memory_region_add_subregion(cfg_bar, cfg_offset, &dev->migration_info_mmio);
+
+    return 0;
+}
+
+int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, Error **errp)
+{
+    int ret;
+    char *name;
+    uint32_t bar_size = 4096;
+
+    name = g_strdup_printf("%s-migration", dev->name);
+    memory_region_init(&dev->migration_info_exclusive_bar, OBJECT(dev), name, bar_size);
+    g_free(name);
+
+    ret = migration_cap_init_bar(dev, &dev->migration_info_exclusive_bar, bar_nr,
+                                 0, 0, errp);
+
+    if (ret) {
+        return ret;
+    }
+
+    /* TODO: need PCI_BASE_ADDRESS_MEM_TYPE_64? */
+    pci_register_bar(dev, bar_nr, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                     &dev->migration_info_exclusive_bar);
+
+    return 0;
+}
+
