@@ -605,10 +605,12 @@ fail:
     }
 }
 
+static void vfio_map_log_addr(MemoryListener *listener);
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
     __vfio_listener_region_add(listener, section, false);
+    vfio_map_log_addr(listener);
 }
 
 static void vfio_listener_region_del(MemoryListener *listener,
@@ -771,6 +773,34 @@ static const MemoryListener vfio_memory_listener = {
     .log_global_stop = vfio_log_global_stop,
 
 };
+
+static void vfio_map_log_addr(MemoryListener *listener)
+{
+    VFIOContainer *container;
+    hwaddr iova;
+    ram_addr_t size;
+    void *vaddr;
+    int ret;
+    static int added = 0;
+
+    if (added == 1)
+        return;
+    container = container_of(listener, VFIOContainer, listener);
+    /* see if se can get the listener in a better way */
+    printf("listener in log addr: %p\n", listener);
+    iova = 0x380000000; /* For 12G nested VM, 0x37fffffff is the last one */
+    size = 4096;
+    /* vaddr needs to be aligned by 4K */
+    vaddr = qemu_memalign(size, size);
+    ret = vfio_dma_map(container, iova, size, vaddr, false);
+
+    if (ret) {
+        error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
+                     "0x%"HWADDR_PRIx", %p) = %d (%m)",
+                     container, iova, size, vaddr, ret);
+    }
+    added = 1;
+}
 
 static void vfio_listener_release(VFIOContainer *container)
 {
