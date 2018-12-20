@@ -12,6 +12,36 @@
 #define PCI_MI_DEV_CTL 2
 #define PCI_MI_LOG_CTL 3
 #define PCI_MI_LOG_BADDR 4
+
+struct migration_info {
+    /* read: not available
+     * write: 0 - reset the state registers
+     *        1 - save the state
+     *        2 - restore the state
+     */
+    uint32_t state_ctl;
+    /* read: the max device state size on reset
+     *       the real device state size after save the state
+     * write: the size of the baddr
+     */
+    uint32_t state_size;
+    uint32_t state_baddr_lo;
+    uint32_t state_baddr_hi;
+
+    /* read: not available
+     * write: 0 - reset the log registers
+     *        1 - log enable
+     *        2 - log disable
+     */
+    uint32_t log_ctl;
+    /* read: not available
+     * write: the size of the log
+     */
+    uint32_t log_size;
+    uint32_t log_baddr_lo;
+    uint32_t log_baddr_hi;
+}
+
 static int migration_present(PCIDevice *dev)
 {
     return dev->cap_present & QEMU_PCI_CAP_MI;
