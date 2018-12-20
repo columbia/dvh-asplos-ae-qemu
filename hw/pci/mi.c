@@ -98,7 +98,8 @@ static uint64_t migration_mmio_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
     /* TODO */
-    return 0;
+    printf("read from migration device memory\n");
+    return 0xabeef;
 }
 
 static void migration_mmio_write(void *opaque, hwaddr addr,
