@@ -780,6 +780,7 @@ static void vfio_map_log_addr(MemoryListener *listener)
     hwaddr iova;
     ram_addr_t size;
     void *vaddr;
+    uint8_t *host;
     int ret;
     static int added = 0;
 
@@ -792,6 +793,8 @@ static void vfio_map_log_addr(MemoryListener *listener)
     size = 4096;
     /* vaddr needs to be aligned by 4K */
     vaddr = qemu_memalign(size, size);
+    host = vaddr;
+    *host = 0x17;
     ret = vfio_dma_map(container, iova, size, vaddr, false);
 
     if (ret) {

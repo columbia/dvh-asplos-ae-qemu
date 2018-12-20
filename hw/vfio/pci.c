@@ -2064,6 +2064,7 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
     PCIDevice *pdev = &vdev->pdev;
     uint8_t cap_id, next, size;
     int ret;
+    int val;
 
     cap_id = pdev->config[pos];
     next = pdev->config[pos + PCI_CAP_LIST_NEXT];
@@ -2130,6 +2131,10 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
         printf("Yeah. MI capability is found at 0x%x\n", pos);
         pdev->cap_present |= QEMU_PCI_CAP_MI;
         vdev->mi_cap = pos;
+
+        /* val doesn't matter at this point */
+        val = 0xab;
+        ret = pwrite(vdev->vbasedev.fd, &val, 4, vdev->config_offset + vdev->mi_cap + 4);
         break;
     default:
         ret = pci_add_capability(pdev, cap_id, pos, size, errp);
