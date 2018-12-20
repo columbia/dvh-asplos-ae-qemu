@@ -2065,6 +2065,9 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
     uint8_t cap_id, next, size;
     int ret;
     int val;
+    int bar;
+    off_t bar_offset;
+    off_t offset_in_bar;
 
     cap_id = pdev->config[pos];
     next = pdev->config[pos + PCI_CAP_LIST_NEXT];
@@ -2133,8 +2136,25 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
         vdev->mi_cap = pos;
 
         /* val doesn't matter at this point */
-        val = 0xab;
-        ret = pwrite(vdev->vbasedev.fd, &val, 4, vdev->config_offset + vdev->mi_cap + 4);
+        val = 0;
+        //ret = pwrite(vdev->vbasedev.fd, &val, 4, vdev->config_offset + vdev->mi_cap + 4);
+        ret = pread(vdev->vbasedev.fd, &val, 4, vdev->config_offset + vdev->mi_cap + 4);
+
+        bar = val & 0x7;
+        printf("bar is %d\n", bar);
+        offset_in_bar = val >> 3;
+        printf("offset in bar is 0x%lx\n", offset_in_bar);
+
+        bar_offset = vdev->bars[bar].region.fd_offset;
+        printf("bar offset: 0x%lx\n", bar_offset);
+
+        ret = pread(vdev->vbasedev.fd, &val, 4, bar_offset + offset_in_bar);
+        printf("first word in the bar is 0x%x\n", val);
+
+        if (val == 0xabeef)
+            printf("Read from dev mem is successful\n");
+        else
+            printf("Read from dev mem is NOT successful: 0x%x\n", val);
         break;
     default:
         ret = pci_add_capability(pdev, cap_id, pos, size, errp);
