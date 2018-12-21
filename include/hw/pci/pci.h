@@ -361,6 +361,7 @@ struct PCIDevice {
     uint8_t *migration_info;
     MemoryRegion migration_info_mmio;
     MemoryRegion migration_info_exclusive_bar;
+    void *mi_opaque; /* Use for finding the device in se list */
 };
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,

@@ -1758,7 +1758,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 
         virtio_pci_modern_mem_region_map(proxy, &proxy->common, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->log_test, &cap);
-        migration_cap_init_exclusive_bar(&proxy->pci_dev, proxy->mi_bar_idx, errp);
+        migration_cap_init_exclusive_bar(&proxy->pci_dev, proxy->mi_bar_idx, vdev, errp);
 
         virtio_pci_modern_mem_region_map(proxy, &proxy->isr, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->device, &cap);

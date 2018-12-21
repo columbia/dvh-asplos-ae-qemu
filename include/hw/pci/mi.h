@@ -11,9 +11,9 @@ void migration_cap_init(PCIDevice *dev, Error **errp);
 
 int migration_cap_init_bar(struct PCIDevice *dev, MemoryRegion *cfg_bar,
                            uint8_t cfg_bar_nr, unsigned cfg_offset,
-                           uint8_t cap_pos, Error **errp);
+                           uint8_t cap_pos, void *opaque, Error **errp);
 
-int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, Error **errp);
+int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, void *opaque, Error **errp);
 
 
 struct migration_info {

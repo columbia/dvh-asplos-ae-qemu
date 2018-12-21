@@ -190,7 +190,7 @@ static const MemoryRegionOps migration_info_mmio_ops = {
 
 int migration_cap_init_bar(struct PCIDevice *dev, MemoryRegion *cfg_bar,
                            uint8_t cfg_bar_nr, unsigned cfg_offset,
-                           uint8_t cap_pos, Error **errp)
+                           uint8_t cap_pos, void *opaque, Error **errp)
 {
 
     int cap;
@@ -205,6 +205,7 @@ int migration_cap_init_bar(struct PCIDevice *dev, MemoryRegion *cfg_bar,
         return cap;
     }
 
+    dev->mi_opaque = opaque;
     dev->cap_present |= QEMU_PCI_CAP_MI;
     dev->migration_cap = cap;
     config = dev->config + cap;
@@ -221,7 +222,7 @@ int migration_cap_init_bar(struct PCIDevice *dev, MemoryRegion *cfg_bar,
     return 0;
 }
 
-int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, Error **errp)
+int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, void *opaque, Error **errp)
 {
     int ret;
     char *name;
@@ -232,7 +233,7 @@ int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, Error **err
     g_free(name);
 
     ret = migration_cap_init_bar(dev, &dev->migration_info_exclusive_bar, bar_nr,
-                                 0, 0, errp);
+                                 0, 0, opaque, errp);
 
     if (ret) {
         return ret;
