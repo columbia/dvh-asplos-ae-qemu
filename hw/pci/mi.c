@@ -30,7 +30,14 @@ static void restore_device_state(PCIDevice *dev) {
 static void save_device_state(PCIDevice *dev) {
     /* first we stop the device.
      * vmstate (the first param) matters, but the second one doesn't for virtio*/
+
+    struct migration_info *mi = (struct migration_info *)dev->migration_info;
+    hwaddr baddr;
     vm_state_notify_one_pci(0, RUN_STATE_PAUSED, (void *)dev);
+
+    baddr = ((uint64_t)mi->state_baddr_hi) << 32 | mi->state_baddr_lo;
+
+    printf("baddr: 0x%lx\n", baddr);
 
     /* TODO: save device state */
 }
