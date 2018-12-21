@@ -201,6 +201,12 @@ int vfio_spapr_create_window(VFIOContainer *container,
 int vfio_spapr_remove_window(VFIOContainer *container,
                              hwaddr offset_within_address_space);
 
+
+int vfio_dma_map(VFIOContainer *container, hwaddr iova,
+                 ram_addr_t size, void *vaddr, bool readonly);
+
+int vfio_dma_unmap(VFIOContainer *container, hwaddr iova, ram_addr_t size);
+
 #define VMSTATE_VFIO_DEVICE \
     {                                         \
         .name = "vfio-vmstate",               \

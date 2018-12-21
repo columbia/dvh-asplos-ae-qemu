@@ -210,8 +210,8 @@ const MemoryRegionOps vfio_region_ops = {
 /*
  * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
  */
-static int vfio_dma_unmap(VFIOContainer *container,
-                          hwaddr iova, ram_addr_t size)
+int vfio_dma_unmap(VFIOContainer *container,
+                   hwaddr iova, ram_addr_t size)
 {
     struct vfio_iommu_type1_dma_unmap unmap = {
         .argsz = sizeof(unmap),
@@ -228,8 +228,8 @@ static int vfio_dma_unmap(VFIOContainer *container,
     return 0;
 }
 
-static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
-                        ram_addr_t size, void *vaddr, bool readonly)
+int vfio_dma_map(VFIOContainer *container, hwaddr iova,
+                 ram_addr_t size, void *vaddr, bool readonly)
 {
     struct vfio_iommu_type1_dma_map map = {
         .argsz = sizeof(map),
