@@ -3395,9 +3395,6 @@ static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
         return -1;
     }
 
-    pci_device_save(pdev, f);
-    msix_save(pdev, f);
-
     /* Capture the device state to the device state area in the device */
     ret = pread(vdev->vbasedev.fd, &dev_state_size, 4, bar_offset + VIRTIO_PCI_COMMON_STATE_RW);
     if (ret != 4) {
@@ -3412,6 +3409,9 @@ static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
                dev_state_size, ret);
         return -1;
     }
+
+    pci_device_save(pdev, f);
+    msix_save(pdev, f);
 
     qemu_put_be32(f, dev_state_size);
     qemu_put_buffer(f, dev_state, dev_state_size);
