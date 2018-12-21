@@ -13,34 +13,7 @@
 #define PCI_MI_LOG_CTL 3
 #define PCI_MI_LOG_BADDR 4
 
-struct migration_info {
-    /* read: not available
-     * write: 0 - reset the state registers
-     *        1 - save the state
-     *        2 - restore the state
-     */
-    uint32_t state_ctl;
-    /* read: the max device state size on reset
-     *       the real device state size after save the state
-     * write: the size of the baddr
-     */
-    uint32_t state_size;
-    uint32_t state_baddr_lo;
-    uint32_t state_baddr_hi;
 
-    /* read: not available
-     * write: 0 - reset the log registers
-     *        1 - log enable
-     *        2 - log disable
-     */
-    uint32_t log_ctl;
-    /* read: not available
-     * write: the size of the log
-     */
-    uint32_t log_size;
-    uint32_t log_baddr_lo;
-    uint32_t log_baddr_hi;
-}
 
 static int migration_present(PCIDevice *dev)
 {
@@ -132,10 +105,50 @@ static uint64_t migration_mmio_read(void *opaque, hwaddr addr,
     return 0xabeef;
 }
 
+static void handle_state_ctl_write(PCIDevice *dev, uint32_t val)
+{
+    switch(val) {
+        case 0:
+            /* TODO: reset */
+            printf("mi cap state reset - todo\n");
+            break;
+        case 1:
+            printf("mi cap save state\n");
+            save_device_state(dev);
+            break;
+        case 2:
+            printf("mi cap restore state\n");
+            restore_device_state(dev);
+            break;
+        default:
+            printf("Writing %d to state ctl register is not defined\n", val);
+    }
+}
+
 static void migration_mmio_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
-    /* TODO */
+    PCIDevice *dev = opaque;
+
+    switch (addr) {
+        case MI_STATE_CTL:
+            handle_state_ctl_write(dev, val);
+            break;
+        case MI_LOG_CTL:
+            printf("writing to log ctl is not implemented\n");
+            break;
+        case MI_STATE_SIZE:
+        case MI_STATE_BADDR_LO:
+        case MI_STATE_BADDR_HI:
+        case MI_LOG_SIZE:
+        case MI_LOG_BADDR_LO:
+        case MI_LOG_BADDR_HI:
+            *(uint32_t *)(dev->migration_info + addr) = val;
+            break;
+        default:
+            printf("Writing 0x%lx to mi device memory is not defined\n", addr);
+    }
+
     return;
 }
 
@@ -156,7 +169,9 @@ int migration_cap_init_bar(struct PCIDevice *dev, MemoryRegion *cfg_bar,
 
     int cap;
     uint8_t *config;
-    unsigned migration_info_size = 64;
+    unsigned migration_info_size = sizeof(struct migration_info);
+
+    printf("migration_info_size: %d\n", migration_info_size);
 
     cap = pci_add_capability(dev, PCI_CAP_ID_MI, cap_pos, PCI_CAP_MI_SIZEOF, errp);
 

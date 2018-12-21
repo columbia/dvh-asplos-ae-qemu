@@ -14,4 +14,44 @@ int migration_cap_init_bar(struct PCIDevice *dev, MemoryRegion *cfg_bar,
                            uint8_t cap_pos, Error **errp);
 
 int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, Error **errp);
+
+
+struct migration_info {
+    /* read: not available
+     * write: 0 - reset the state registers
+     *        1 - save the state
+     *        2 - restore the state
+     */
+    uint32_t state_ctl;
+    /* read: the max device state size on reset
+     *       the real device state size after save the state
+     * write: the size of the baddr
+     */
+    uint32_t state_size;
+    uint32_t state_baddr_lo;
+    uint32_t state_baddr_hi;
+
+    /* read: not available
+     * write: 0 - reset the log registers
+     *        1 - log enable
+     *        2 - log disable
+     */
+    uint32_t log_ctl;
+    /* read: not available
+     * write: the size of the log
+     */
+    uint32_t log_size;
+    uint32_t log_baddr_lo;
+    uint32_t log_baddr_hi;
+};
+
+#define MI_STATE_CTL        0
+#define MI_STATE_SIZE       4
+#define MI_STATE_BADDR_LO   8
+#define MI_STATE_BADDR_HI   12
+#define MI_LOG_CTL          16
+#define MI_LOG_SIZE         20
+#define MI_LOG_BADDR_LO     24
+#define MI_LOG_BADDR_HI     28
+
 #endif
