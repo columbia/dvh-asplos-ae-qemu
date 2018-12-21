@@ -2135,26 +2135,25 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
         pdev->cap_present |= QEMU_PCI_CAP_MI;
         vdev->mi_cap = pos;
 
-        /* val doesn't matter at this point */
-        val = 0;
-        //ret = pwrite(vdev->vbasedev.fd, &val, 4, vdev->config_offset + vdev->mi_cap + 4);
+        /* read mi control reg */
         ret = pread(vdev->vbasedev.fd, &val, 4, vdev->config_offset + vdev->mi_cap + 4);
-
         bar = val & 0x7;
-        printf("bar is %d\n", bar);
         offset_in_bar = val >> 3;
+        bar_offset = vdev->bars[bar].region.fd_offset;
+
+        vdev->mi_offset = bar_offset + offset_in_bar;
+
+        printf("bar offset: 0x%lx\n", bar_offset);
+        printf("bar is %d\n", bar);
         printf("offset in bar is 0x%lx\n", offset_in_bar);
 
-        bar_offset = vdev->bars[bar].region.fd_offset;
-        printf("bar offset: 0x%lx\n", bar_offset);
+        val = 0;
+        ret = pwrite(vdev->vbasedev.fd, &val, 4, vdev->mi_offset + 0);
+        if (ret != 4) {
+            printf("Fail to write mi cap dev ctl: %d\n", ret);
+            return -1;
+        }
 
-        ret = pread(vdev->vbasedev.fd, &val, 4, bar_offset + offset_in_bar);
-        printf("first word in the bar is 0x%x\n", val);
-
-        if (val == 0xabeef)
-            printf("Read from dev mem is successful\n");
-        else
-            printf("Read from dev mem is NOT successful: 0x%x\n", val);
         break;
     default:
         ret = pci_add_capability(pdev, cap_id, pos, size, errp);

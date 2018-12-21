@@ -154,7 +154,6 @@ typedef struct VFIOPCIDevice {
     uint32_t igd_gms;
     OffAutoPCIBAR msix_relo;
     uint8_t pm_cap;
-    uint8_t mi_cap;
     uint8_t nv_gpudirect_clique;
     bool pci_aer;
     bool req_enabled;
@@ -169,6 +168,9 @@ typedef struct VFIOPCIDevice {
     bool no_vfio_ioeventfd;
     bool enable_ramfb;
     VFIODisplay *dpy;
+
+    uint8_t mi_cap;
+    off_t mi_offset;
 } VFIOPCIDevice;
 
 uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);
