@@ -199,7 +199,7 @@ int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, Error **err
 {
     int ret;
     char *name;
-    uint32_t bar_size = 4096;
+    uint32_t bar_size = sizeof(struct migration_info);
 
     name = g_strdup_printf("%s-migration", dev->name);
     memory_region_init(&dev->migration_info_exclusive_bar, OBJECT(dev), name, bar_size);
@@ -213,7 +213,7 @@ int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, Error **err
     }
 
     /* TODO: need PCI_BASE_ADDRESS_MEM_TYPE_64? */
-    pci_register_bar(dev, bar_nr, PCI_BASE_ADDRESS_SPACE_MEMORY,
+    pci_register_bar(dev, bar_nr, PCI_BASE_ADDRESS_SPACE_IO,
                      &dev->migration_info_exclusive_bar);
 
     return 0;
