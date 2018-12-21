@@ -125,6 +125,20 @@ static void handle_state_ctl_write(PCIDevice *dev, uint32_t val)
     }
 }
 
+static void read_addr_contents(PCIDevice *dev)
+{
+    uint8_t *hva;
+    AddressSpace *as;
+    dma_addr_t pa, lenn;
+
+    as = pci_device_iommu_address_space(dev);
+    pa = 0x380000000;
+    lenn = 4096;
+
+    hva = dma_memory_map(as, pa, &lenn, DMA_DIRECTION_TO_DEVICE);
+    printf("The first byte is 0x%x\n", *hva);
+}
+
 static void migration_mmio_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
@@ -137,9 +151,14 @@ static void migration_mmio_write(void *opaque, hwaddr addr,
         case MI_LOG_CTL:
             printf("writing to log ctl is not implemented\n");
             break;
-        case MI_STATE_SIZE:
+
         case MI_STATE_BADDR_LO:
         case MI_STATE_BADDR_HI:
+            read_addr_contents(dev);
+            printf("val at 0x%lx is 0x%lx\n", addr, val);
+
+            /* fall through */
+        case MI_STATE_SIZE:
         case MI_LOG_SIZE:
         case MI_LOG_BADDR_LO:
         case MI_LOG_BADDR_HI:
