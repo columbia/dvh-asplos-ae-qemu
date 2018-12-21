@@ -36,6 +36,7 @@
 #include "qapi/error.h"
 #include "hw/virtio/vhost.h"
 #include "migration/blocker.h"
+#include "hw/vfio/vfio-common.h"
 
 #include "standard-headers/linux/virtio_pci.h"
 
@@ -3375,6 +3376,34 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void vfio_set_state_addr(VFIOPCIDevice *vdev)
+{
+    VFIOContainer *container;
+    hwaddr iova;
+    ram_addr_t size;
+    void *vaddr;
+    uint8_t *host;
+    int ret;
+
+    container = vdev->vbasedev.group->container;
+
+    iova = 0x380000000; /* For 12G nested VM, 0x37fffffff is the last one */
+    size = 4096;
+    /* vaddr needs to be aligned by 4K */
+    vaddr = qemu_memalign(size, size);
+    host = vaddr;
+
+    /* test val */
+    *host = 0x17;
+
+    ret = vfio_dma_map(container, iova, size, vaddr, false);
+    if (ret) {
+        error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
+                     "0x%"HWADDR_PRIx", %p) = %d (%m)",
+                     container, iova, size, vaddr, ret);
+    }
+}
+
 /* Mimic virtio_pci_save_config */
 static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
 {
@@ -3385,7 +3414,17 @@ static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
     /* XXX: We know that device state is saved in BAR4 of virtio device */
     off_t bar_offset = 0x40000000000;
     uint8_t dev_state[0x10000];
-    int val;
+    uint64_t val;
+
+    vfio_set_state_addr(vdev);
+
+    /* Write baddr */
+    val = 0x12345678abcd;
+    ret = pwrite(vdev->vbasedev.fd, &val, 8, vdev->mi_offset + 8);
+    if (ret != 8) {
+        printf("Fail to write mi cap dev ctl: %d\n", ret);
+        return -1;
+    }
 
     /* Stop the device first using migration cap */
     val = 1;
