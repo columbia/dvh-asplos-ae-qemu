@@ -3376,31 +3376,45 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void vfio_set_state_addr(VFIOPCIDevice *vdev)
+static uint8_t *vfio_create_mapping(VFIOPCIDevice *vdev, hwaddr iova, size_t size)
 {
     VFIOContainer *container;
-    hwaddr iova;
-    ram_addr_t size;
     void *vaddr;
-    uint8_t *host;
     int ret;
 
     container = vdev->vbasedev.group->container;
-
-    iova = 0x380000000; /* For 12G nested VM, 0x37fffffff is the last one */
-    size = 4096;
     /* vaddr needs to be aligned by 4K */
-    vaddr = qemu_memalign(size, size);
-    host = vaddr;
-
-    /* test val */
-    *host = 0x17;
+    vaddr = qemu_memalign(size, 0x1000);
 
     ret = vfio_dma_map(container, iova, size, vaddr, false);
     if (ret) {
         error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
                      "0x%"HWADDR_PRIx", %p) = %d (%m)",
                      container, iova, size, vaddr, ret);
+
+    }
+
+    return (uint8_t *)vaddr;
+}
+
+static void vfio_set_state_addr(VFIOPCIDevice *vdev)
+{
+    hwaddr iova;
+    ram_addr_t size;
+    uint8_t *host;
+    int ret;
+
+    iova = 0x380000000; /* For 12G nested VM, 0x37fffffff is the last one */
+    size = 0x10000;
+    host = vfio_create_mapping(vdev, iova, size);
+
+    /* test val */
+    *host = 0x17;
+
+    /* Write baddr */
+    ret = pwrite(vdev->vbasedev.fd, &iova, 8, vdev->mi_offset + 8);
+    if (ret != 8) {
+        printf("Fail to write mi cap dev ctl: %d\n", ret);
     }
 }
 
@@ -3417,14 +3431,6 @@ static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
     uint64_t val;
 
     vfio_set_state_addr(vdev);
-
-    /* Write baddr */
-    val = 0x12345678abcd;
-    ret = pwrite(vdev->vbasedev.fd, &val, 8, vdev->mi_offset + 8);
-    if (ret != 8) {
-        printf("Fail to write mi cap dev ctl: %d\n", ret);
-        return -1;
-    }
 
     /* Stop the device first using migration cap */
     val = 1;
