@@ -3397,7 +3397,7 @@ static uint8_t *vfio_create_mapping(VFIOPCIDevice *vdev, hwaddr iova, size_t siz
     return (uint8_t *)vaddr;
 }
 
-static void vfio_set_state_addr(VFIOPCIDevice *vdev)
+uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev)
 {
     hwaddr iova;
     ram_addr_t size;
@@ -3416,6 +3416,8 @@ static void vfio_set_state_addr(VFIOPCIDevice *vdev)
     if (ret != 8) {
         printf("Fail to write mi cap dev ctl: %d\n", ret);
     }
+
+    return host;
 }
 
 /* Mimic virtio_pci_save_config */
@@ -3429,8 +3431,9 @@ static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
     off_t bar_offset = 0x40000000000;
     uint8_t dev_state[0x10000];
     uint64_t val;
+    uint8_t *state;
 
-    vfio_set_state_addr(vdev);
+    state = vfio_set_state_addr(vdev);
 
     /* Stop the device first using migration cap */
     val = 1;
