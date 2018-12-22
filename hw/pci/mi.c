@@ -6,6 +6,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "sysemu/sysemu.h"
+#include "migration/savevm.h"
 
 #define PCI_CAP_MI_SIZEOF 8
 #define PCI_MI_CONFIG 4
@@ -118,6 +119,8 @@ static void handle_state_ctl_write(PCIDevice *dev, uint32_t val)
         case 0:
             /* TODO: reset */
             printf("mi cap state reset - todo\n");
+            /* test: search for the device in se list */
+            qemu_savevm_get_se_opaque(dev->mi_opaque);
             break;
         case 1:
             printf("mi cap save state\n");

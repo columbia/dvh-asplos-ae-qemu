@@ -91,6 +91,7 @@ int qemu_load_device_state(QEMUFile *f);
 
 int qemu_savevm_save_device_state(QEMUFile *f, SaveStateEntry *se, int *size);
 SaveStateEntry *qemu_savevm_get_se(const VMStateDescription *vmsd);
+SaveStateEntry *qemu_savevm_get_se_opaque(void *opaque);
 int qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis);
 
 #endif

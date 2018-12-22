@@ -2780,3 +2780,21 @@ SaveStateEntry *qemu_savevm_get_se(const VMStateDescription *vmsd)
 
     return se;
 }
+
+SaveStateEntry *qemu_savevm_get_se_opaque(void *opaque)
+{
+    SaveStateEntry *se = NULL;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->opaque == opaque) {
+                break;
+        }
+    }
+
+    if (se) 
+        printf("idstr: %s\n", se->idstr);
+    else
+        printf("Warning: cound't find SE\n");
+
+    return se;
+}
