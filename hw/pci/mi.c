@@ -262,14 +262,14 @@ static const MemoryRegionOps migration_info_mmio_ops = {
 
 int migration_cap_init_bar(struct PCIDevice *dev, MemoryRegion *cfg_bar,
                            uint8_t cfg_bar_nr, unsigned cfg_offset,
-                           uint8_t cap_pos, void *opaque, Error **errp)
+                           uint8_t cap_pos, void *opaque, uint32_t dev_max_size,
+                           Error **errp)
 {
 
     int cap;
     uint8_t *config;
     unsigned migration_info_size = sizeof(struct migration_info);
-
-    printf("migration_info_size: %d\n", migration_info_size);
+    struct migration_info *mi;
 
     cap = pci_add_capability(dev, PCI_CAP_ID_MI, cap_pos, PCI_CAP_MI_SIZEOF, errp);
 
@@ -285,6 +285,8 @@ int migration_cap_init_bar(struct PCIDevice *dev, MemoryRegion *cfg_bar,
     pci_set_long(config + PCI_MI_CONFIG, cfg_offset | cfg_bar_nr);
 
     dev->migration_info = g_malloc0(migration_info_size);
+    mi = (struct migration_info *)dev->migration_info;
+    mi->state_size = dev_max_size;
 
     memory_region_init_io(&dev->migration_info_mmio, OBJECT(dev),
                           &migration_info_mmio_ops, dev,
@@ -294,7 +296,8 @@ int migration_cap_init_bar(struct PCIDevice *dev, MemoryRegion *cfg_bar,
     return 0;
 }
 
-int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, void *opaque, Error **errp)
+int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, void *opaque,
+                                     uint32_t dev_max_size, Error **errp)
 {
     int ret;
     char *name;
@@ -305,7 +308,7 @@ int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, void *opaqu
     g_free(name);
 
     ret = migration_cap_init_bar(dev, &dev->migration_info_exclusive_bar, bar_nr,
-                                 0, 0, opaque, errp);
+                                 0, 0, opaque, dev_max_size, errp);
 
     if (ret) {
         return ret;
