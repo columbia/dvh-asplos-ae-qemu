@@ -3397,19 +3397,25 @@ static uint8_t *vfio_create_mapping(VFIOPCIDevice *vdev, hwaddr iova, size_t siz
     return (uint8_t *)vaddr;
 }
 
-uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev)
+static uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev)
 {
     hwaddr iova;
     ram_addr_t size;
     uint8_t *host;
     int ret;
+    int offset = 0;
+    int k = 0x17;
 
     iova = 0x380000000; /* For 12G nested VM, 0x37fffffff is the last one */
     size = 0x10000;
     host = vfio_create_mapping(vdev, iova, size);
 
     /* test val */
-    *host = 0x17;
+    while (offset < size) {
+        *(host + offset) = k;
+        offset += 4096;
+        k += 1;
+    }
 
     /* Write baddr */
     ret = pwrite(vdev->vbasedev.fd, &iova, 8, vdev->mi_offset + 8);
@@ -3427,15 +3433,13 @@ static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
     int dev_state_size;
     /* We assume this vfio device is PCI device */
     PCIDevice *pdev = &vdev->pdev;
-    /* XXX: We know that device state is saved in BAR4 of virtio device */
-    off_t bar_offset = 0x40000000000;
-    uint8_t dev_state[0x10000];
     uint64_t val;
     uint8_t *state;
 
+    /* Set the address for device state */
     state = vfio_set_state_addr(vdev);
 
-    /* Stop the device first using migration cap */
+    /* Capture the device state using migration cap */
     val = 1;
     ret = pwrite(vdev->vbasedev.fd, &val, 4, vdev->mi_offset + 0);
     if (ret != 4) {
@@ -3443,18 +3447,10 @@ static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
         return -1;
     }
 
-    /* Capture the device state to the device state area in the device */
-    ret = pread(vdev->vbasedev.fd, &dev_state_size, 4, bar_offset + VIRTIO_PCI_COMMON_STATE_RW);
+    /* Get the device state size */
+    ret = pread(vdev->vbasedev.fd, &dev_state_size, 4, vdev->mi_offset + 4);
     if (ret != 4) {
-        printf("Fail to save device state\n");
-        return -1;
-    }
-
-    /* Read device state from the device state area */
-    ret = pread(vdev->vbasedev.fd, &dev_state, dev_state_size, bar_offset + VIRTIO_PCI_COMMON_DEV_STATE_START);
-    if (ret != dev_state_size) {
-        printf("Fail to copy device state. requested: %d, read: %d\n",
-               dev_state_size, ret);
+        printf("Fail to write mi cap dev ctl: %d\n", ret);
         return -1;
     }
 
@@ -3462,7 +3458,7 @@ static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
     msix_save(pdev, f);
 
     qemu_put_be32(f, dev_state_size);
-    qemu_put_buffer(f, dev_state, dev_state_size);
+    qemu_put_buffer(f, state, dev_state_size);
 
     return 0;
 }
