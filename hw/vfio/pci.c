@@ -3376,6 +3376,19 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+#define MI_STATE_CTL        0
+#define   MI_STATE_CTL_RESET 0
+#define   MI_STATE_CTL_SAVE  1
+#define   MI_STATE_CTL_RESTORE 2
+#define MI_STATE_SIZE       4
+#define MI_STATE_BADDR      8
+#define MI_STATE_BADDR_LO   8
+#define MI_STATE_BADDR_HI   12
+#define MI_LOG_CTL          16
+#define MI_LOG_SIZE         20
+#define MI_LOG_BADDR_LO     24
+#define MI_LOG_BADDR_HI     28
+
 static uint8_t *vfio_create_mapping(VFIOPCIDevice *vdev, hwaddr iova, size_t size)
 {
     VFIOContainer *container;
@@ -3397,30 +3410,27 @@ static uint8_t *vfio_create_mapping(VFIOPCIDevice *vdev, hwaddr iova, size_t siz
     return (uint8_t *)vaddr;
 }
 
-static uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev)
+static uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev, hwaddr iova, ram_addr_t dev_size)
 {
-    hwaddr iova;
-    ram_addr_t size;
     uint8_t *host;
     int ret;
     int offset = 0;
     int k = 0x17;
+    int size = 8;
 
-    iova = 0x380000000; /* For 12G nested VM, 0x37fffffff is the last one */
-    size = 0x10000;
-    host = vfio_create_mapping(vdev, iova, size);
+    host = vfio_create_mapping(vdev, iova, dev_size);
 
     /* test val */
-    while (offset < size) {
+    while (offset < dev_size) {
         *(host + offset) = k;
         offset += 4096;
         k += 1;
     }
 
     /* Write baddr */
-    ret = pwrite(vdev->vbasedev.fd, &iova, 8, vdev->mi_offset + 8);
-    if (ret != 8) {
-        printf("Fail to write mi cap dev ctl: %d\n", ret);
+    ret = pwrite(vdev->vbasedev.fd, &iova, size, vdev->mi_offset + MI_STATE_BADDR);
+    if (ret != size) {
+        printf("Fail to write the device state baddr: %d\n", ret);
     }
 
     return host;
@@ -3430,35 +3440,46 @@ static uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev)
 static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
 {
     int ret;
-    int dev_state_size;
-    /* We assume this vfio device is PCI device */
     PCIDevice *pdev = &vdev->pdev;
     uint64_t val;
     uint8_t *state;
+    hwaddr iova;
+    ram_addr_t dev_size = 0;
+    int size = 4;
+
+    /* Get the max device size */
+    ret = pread(vdev->vbasedev.fd, &dev_size, size, vdev->mi_offset + MI_STATE_SIZE);
+    if (ret != size) {
+        printf("Fail to read the max device state size: %d\n", ret);
+        return -1;
+    }
+
+    /* This is what the guest hyp chose given the nested VM size (12G) */
+    iova = 0x380000000;
 
     /* Set the address for device state */
-    state = vfio_set_state_addr(vdev);
+    state = vfio_set_state_addr(vdev, iova, dev_size);
 
     /* Capture the device state using migration cap */
-    val = 1;
-    ret = pwrite(vdev->vbasedev.fd, &val, 4, vdev->mi_offset + 0);
-    if (ret != 4) {
-        printf("Fail to write mi cap dev ctl: %d\n", ret);
+    val = MI_STATE_CTL_SAVE;
+    ret = pwrite(vdev->vbasedev.fd, &val, size, vdev->mi_offset + MI_STATE_CTL);
+    if (ret != size) {
+        printf("Fail to capture device state: %d\n", ret);
         return -1;
     }
 
     /* Get the device state size */
-    ret = pread(vdev->vbasedev.fd, &dev_state_size, 4, vdev->mi_offset + 4);
-    if (ret != 4) {
-        printf("Fail to write mi cap dev ctl: %d\n", ret);
+    ret = pread(vdev->vbasedev.fd, &dev_size, size, vdev->mi_offset + MI_STATE_SIZE);
+    if (ret != size) {
+        printf("Fail to get the actual device state size: %d\n", ret);
         return -1;
     }
 
     pci_device_save(pdev, f);
     msix_save(pdev, f);
 
-    qemu_put_be32(f, dev_state_size);
-    qemu_put_buffer(f, state, dev_state_size);
+    qemu_put_be32(f, dev_size);
+    qemu_put_buffer(f, state, dev_size);
 
     return 0;
 }
