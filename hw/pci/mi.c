@@ -160,9 +160,26 @@ void migration_cap_init(PCIDevice *dev, Error **errp)
 static uint64_t migration_mmio_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
-    /* TODO */
-    printf("read from migration device memory\n");
-    return 0xabeef;
+
+    PCIDevice *dev = opaque;
+    uint64_t val = 0;
+
+    switch (addr) {
+        case MI_STATE_CTL:
+        case MI_LOG_CTL:
+        case MI_STATE_BADDR_LO:
+        case MI_STATE_BADDR_HI:
+        case MI_STATE_SIZE:
+        case MI_LOG_SIZE:
+        case MI_LOG_BADDR_LO:
+        case MI_LOG_BADDR_HI:
+            val = *(uint32_t *)(dev->migration_info + addr);
+            break;
+        default:
+            printf("Reading 0x%lx from mi device memory is not defined\n", addr);
+    }
+
+    return val;
 }
 
 static void handle_state_ctl_write(PCIDevice *dev, uint32_t val)
