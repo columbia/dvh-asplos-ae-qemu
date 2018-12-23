@@ -23,7 +23,8 @@ static int migration_present(PCIDevice *dev)
     return dev->cap_present & QEMU_PCI_CAP_MI;
 }
 
-static void copy_device_state(PCIDevice *dev, uint8_t *src, size_t sz)
+static void copy_device_state(PCIDevice *dev, uint8_t *dev_state, size_t sz,
+                              bool from_device)
 {
     hwaddr baddr;
     AddressSpace *as;
@@ -42,11 +43,14 @@ static void copy_device_state(PCIDevice *dev, uint8_t *src, size_t sz)
         printf("len: 0x%lx\n", len);
 
         /* TODO: check if the device state exceeds the given buffer */
-        memcpy(hva, src, len);
+        if (from_device)
+            memcpy(hva, dev_state, len);
+        else
+            memcpy(dev_state, hva, len);
 
         sz -= len;
         baddr += len;
-        src += len;
+        dev_state += len;
     }
     printf("%s done\n", __func__);
 }
@@ -89,7 +93,7 @@ static void save_device_state(PCIDevice *dev) {
     }
 
     /* 3. copy from qemu file to baddr */
-    copy_device_state(dev, qemu_get_dev_state(f), dev_state_size);
+    copy_device_state(dev, qemu_get_dev_state(f), dev_state_size, true);
 
     /* 4. setup the device state size */
     mi->state_size = dev_state_size;
