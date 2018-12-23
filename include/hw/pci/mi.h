@@ -47,6 +47,9 @@ struct migration_info {
 };
 
 #define MI_STATE_CTL        0
+#define   MI_STATE_CTL_RESET 0
+#define   MI_STATE_CTL_SAVE  1
+#define   MI_STATE_CTL_RESTORE 2
 #define MI_STATE_SIZE       4
 #define MI_STATE_BADDR_LO   8
 #define MI_STATE_BADDR_HI   12

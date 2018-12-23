@@ -185,17 +185,17 @@ static uint64_t migration_mmio_read(void *opaque, hwaddr addr,
 static void handle_state_ctl_write(PCIDevice *dev, uint32_t val)
 {
     switch(val) {
-        case 0:
+        case MI_STATE_CTL_RESET:
             /* TODO: reset */
             printf("mi cap state reset - todo\n");
             /* test: search for the device in se list */
             qemu_savevm_get_se_opaque(dev->mi_opaque);
             break;
-        case 1:
+        case MI_STATE_CTL_SAVE:
             printf("mi cap save state\n");
             save_device_state(dev);
             break;
-        case 2:
+        case MI_STATE_CTL_RESTORE:
             printf("mi cap restore state\n");
             restore_device_state(dev);
             break;
