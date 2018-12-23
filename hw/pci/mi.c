@@ -7,6 +7,8 @@
 #include "trace.h"
 #include "sysemu/sysemu.h"
 #include "migration/savevm.h"
+#include "migration/qemu-file.h"
+#include "qemu/error-report.h"
 
 #define PCI_CAP_MI_SIZEOF 8
 #define PCI_MI_CONFIG 4
@@ -21,6 +23,34 @@ static int migration_present(PCIDevice *dev)
     return dev->cap_present & QEMU_PCI_CAP_MI;
 }
 
+static void copy_device_state(PCIDevice *dev, uint8_t *src, size_t sz)
+{
+    hwaddr baddr;
+    AddressSpace *as;
+    uint8_t *hva;
+    struct migration_info *mi = (struct migration_info *)dev->migration_info;
+
+    printf("%s starts\n", __func__);
+
+    baddr = ((uint64_t)mi->state_baddr_hi) << 32 | mi->state_baddr_lo;
+    as = pci_device_iommu_address_space(dev);
+
+    while (sz) {
+        hwaddr len = sz;
+
+        hva = dma_memory_map(as, baddr, &len, DMA_DIRECTION_TO_DEVICE);
+        printf("len: 0x%lx\n", len);
+
+        /* TODO: check if the device state exceeds the given buffer */
+        memcpy(hva, src, len);
+
+        sz -= len;
+        baddr += len;
+        src += len;
+    }
+    printf("%s done\n", __func__);
+}
+
 static void restore_device_state(PCIDevice *dev) {
     /* we are about to start the device */
     vm_state_notify_one_pci(1, RUN_STATE_RUNNING, (void *)dev);
@@ -29,18 +59,40 @@ static void restore_device_state(PCIDevice *dev) {
 }
 
 static void save_device_state(PCIDevice *dev) {
-    /* first we stop the device.
-     * vmstate (the first param) matters, but the second one doesn't for virtio*/
-
     struct migration_info *mi = (struct migration_info *)dev->migration_info;
-    hwaddr baddr;
+    SaveStateEntry *se;
+    int dev_state_size;
+    QEMUFile *f;
+    int ret;
+
+    /* 1. stop the device */
     vm_state_notify_one_pci(0, RUN_STATE_PAUSED, (void *)dev);
 
-    baddr = ((uint64_t)mi->state_baddr_hi) << 32 | mi->state_baddr_lo;
+    /* 2. capture the device state to qemu file (temp) */
+    se = qemu_savevm_get_se_opaque(dev->mi_opaque);
+    if (!se) {
+        printf("WARNING: can't find device in se list\n");
+        return;
+    } else {
+        printf("Found device in se list: %s\n", dev->name);
+    }
 
-    printf("baddr: 0x%lx\n", baddr);
+    f = create_mem_QEMUFile();
+    if (!f)
+        error_report("unable to create in-memory QEMU file");
 
-    /* TODO: save device state */
+    ret = qemu_savevm_save_device_state(f, se, &dev_state_size);
+    if (ret) {
+        printf("WARNING: virtio dev state save is failed: %d.\n", ret);
+        mi->state_size = 0;
+        return;
+    }
+
+    /* 3. copy from qemu file to baddr */
+    copy_device_state(dev, qemu_get_dev_state(f), dev_state_size);
+
+    /* 4. setup the device state size */
+    mi->state_size = dev_state_size;
 }
 
 void migration_write_config(PCIDevice *dev, uint32_t addr,
