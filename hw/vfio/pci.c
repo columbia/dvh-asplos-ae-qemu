@@ -110,6 +110,57 @@ static void vfio_intx_eoi(VFIODevice *vbasedev)
     vfio_unmask_single_irqindex(vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
 }
 
+#define MI_STATE_CTL        0
+#define   MI_STATE_CTL_RESET 0
+#define   MI_STATE_CTL_SAVE  1
+#define   MI_STATE_CTL_RESTORE 2
+#define MI_STATE_SIZE       4
+#define MI_STATE_BADDR      8
+#define MI_STATE_BADDR_LO   8
+#define MI_STATE_BADDR_HI   12
+#define MI_LOG_CTL          16
+#define MI_LOG_SIZE         20
+#define MI_LOG_BADDR_LO     24
+#define MI_LOG_BADDR_HI     28
+
+static uint8_t *vfio_create_mapping(VFIOPCIDevice *vdev, hwaddr iova, size_t size)
+{
+    VFIOContainer *container;
+    void *vaddr;
+    int ret;
+
+    container = vdev->vbasedev.group->container;
+    /* vaddr needs to be aligned by 4K */
+    vaddr = qemu_memalign(0x1000, size);
+
+    ret = vfio_dma_map(container, iova, size, vaddr, false);
+    if (ret) {
+        error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
+                     "0x%"HWADDR_PRIx", %p) = %d (%m)",
+                     container, iova, size, vaddr, ret);
+
+    }
+
+    return (uint8_t *)vaddr;
+}
+
+static uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev, hwaddr iova, ram_addr_t dev_size)
+{
+    uint8_t *host;
+    int ret;
+    int size = 8;
+
+    host = vfio_create_mapping(vdev, iova, dev_size);
+
+    /* Write baddr */
+    ret = pwrite(vdev->vbasedev.fd, &iova, size, vdev->mi_offset + MI_STATE_BADDR);
+    if (ret != size) {
+        printf("Fail to write the device state baddr: %d\n", ret);
+    }
+
+    return host;
+}
+
 static void vfio_pci_log(VFIODevice *vbasedev, int enable)
 {
     off_t bar_offset = 0x40000000000;
@@ -3375,57 +3426,6 @@ static Property vfio_pci_dev_properties[] = {
      */
     DEFINE_PROP_END_OF_LIST(),
 };
-
-#define MI_STATE_CTL        0
-#define   MI_STATE_CTL_RESET 0
-#define   MI_STATE_CTL_SAVE  1
-#define   MI_STATE_CTL_RESTORE 2
-#define MI_STATE_SIZE       4
-#define MI_STATE_BADDR      8
-#define MI_STATE_BADDR_LO   8
-#define MI_STATE_BADDR_HI   12
-#define MI_LOG_CTL          16
-#define MI_LOG_SIZE         20
-#define MI_LOG_BADDR_LO     24
-#define MI_LOG_BADDR_HI     28
-
-static uint8_t *vfio_create_mapping(VFIOPCIDevice *vdev, hwaddr iova, size_t size)
-{
-    VFIOContainer *container;
-    void *vaddr;
-    int ret;
-
-    container = vdev->vbasedev.group->container;
-    /* vaddr needs to be aligned by 4K */
-    vaddr = qemu_memalign(0x1000, size);
-
-    ret = vfio_dma_map(container, iova, size, vaddr, false);
-    if (ret) {
-        error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
-                     "0x%"HWADDR_PRIx", %p) = %d (%m)",
-                     container, iova, size, vaddr, ret);
-
-    }
-
-    return (uint8_t *)vaddr;
-}
-
-static uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev, hwaddr iova, ram_addr_t dev_size)
-{
-    uint8_t *host;
-    int ret;
-    int size = 8;
-
-    host = vfio_create_mapping(vdev, iova, dev_size);
-
-    /* Write baddr */
-    ret = pwrite(vdev->vbasedev.fd, &iova, size, vdev->mi_offset + MI_STATE_BADDR);
-    if (ret != size) {
-        printf("Fail to write the device state baddr: %d\n", ret);
-    }
-
-    return host;
-}
 
 /* Mimic virtio_pci_save_config */
 static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
