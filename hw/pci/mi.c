@@ -39,14 +39,14 @@ static void copy_device_state(PCIDevice *dev, uint8_t *dev_state, size_t sz,
     while (sz) {
         hwaddr len = sz;
 
-        hva = dma_memory_map(as, baddr, &len, DMA_DIRECTION_TO_DEVICE);
-        printf("len: 0x%lx\n", len);
-
         /* TODO: check if the device state exceeds the given buffer */
-        if (from_device)
+        if (from_device) {
+            hva = dma_memory_map(as, baddr, &len, DMA_DIRECTION_FROM_DEVICE);
             memcpy(hva, dev_state, len);
-        else
+        } else {
+            hva = dma_memory_map(as, baddr, &len, DMA_DIRECTION_TO_DEVICE);
             memcpy(dev_state, hva, len);
+        }
 
         sz -= len;
         baddr += len;
@@ -56,10 +56,30 @@ static void copy_device_state(PCIDevice *dev, uint8_t *dev_state, size_t sz,
 }
 
 static void restore_device_state(PCIDevice *dev) {
-    /* we are about to start the device */
-    vm_state_notify_one_pci(1, RUN_STATE_RUNNING, (void *)dev);
+    struct migration_info *mi = (struct migration_info *)dev->migration_info;
+    QEMUFile *f;
+    int ret;
+    uint8_t section_type;
 
-    /* TODO: restore device state */
+    /* 1. Copy device state from the given pointer */
+    f = create_mem_QEMUFile();
+    if (!f)
+        error_report("unable to create in-memory QEMU file");
+
+    copy_device_state(dev, qemu_get_dev_state(f), mi->state_size , false);
+
+    /* 2. Restore the device state */
+    section_type = qemu_get_byte(f);
+    if (section_type != QEMU_VM_SECTION_FULL)
+        printf("WARNING: section type is not FULL: %d\n", section_type);
+    ret = qemu_loadvm_section_start_full(f, NULL);
+    if (ret < 0)
+        printf("WARNING: Restoring virtio device state is failed\n");
+
+    qemu_fclose(f);
+
+    /* 3. Restart the device */
+    vm_state_notify_one_pci(1, RUN_STATE_RUNNING, (void *)dev);
 }
 
 static void save_device_state(PCIDevice *dev) {
@@ -208,20 +228,6 @@ static void handle_state_ctl_write(PCIDevice *dev, uint32_t val)
     }
 }
 
-static void read_addr_contents(PCIDevice *dev)
-{
-    uint8_t *hva;
-    AddressSpace *as;
-    dma_addr_t pa, lenn;
-
-    as = pci_device_iommu_address_space(dev);
-    pa = 0x380000000;
-    lenn = 4096;
-
-    hva = dma_memory_map(as, pa, &lenn, DMA_DIRECTION_TO_DEVICE);
-    printf("The first byte is 0x%x\n", *hva);
-}
-
 static void migration_mmio_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
@@ -237,10 +243,6 @@ static void migration_mmio_write(void *opaque, hwaddr addr,
 
         case MI_STATE_BADDR_LO:
         case MI_STATE_BADDR_HI:
-            read_addr_contents(dev);
-            printf("val at 0x%lx is 0x%lx\n", addr, val);
-
-            /* fall through */
         case MI_STATE_SIZE:
         case MI_LOG_SIZE:
         case MI_LOG_BADDR_LO:
