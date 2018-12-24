@@ -261,6 +261,8 @@ static void enable_logging(PCIDevice *dev)
 {
     dev->iov = g_malloc0(sizeof(struct iovec) * MI_IOV_MAX_SIZE);
     translate_log_base(dev);
+
+    dev->mi_ops->start(dev->mi_log_opaque);
 }
 
 static void disable_logging(PCIDevice *dev)
