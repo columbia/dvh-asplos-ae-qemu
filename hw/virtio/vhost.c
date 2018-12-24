@@ -29,6 +29,7 @@
 #include "sysemu/dma.h"
 #include "trace.h"
 #include "dirty.h"
+#include "hw/pci/mi.h"
 
 /* enabled until disconnected backend stabilizes */
 #define _VHOST_DEBUG 1
@@ -1215,6 +1216,17 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
     event_notifier_cleanup(&vq->masked_notifier);
 }
 
+static void vhost_migration_log_start(void *opaque)
+{
+    printf("%s is called YEAH\n", __func__);
+    return;
+}
+
+static void vhost_migration_log_stop(void *opaque)
+{
+    return;
+}
+
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout)
 {
@@ -1582,6 +1594,19 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
             vhost_device_iotlb_miss(hdev, vq->used_phys, true);
         }
     }
+
+    static const struct MigrationOps vhostOps = {
+        .start = vhost_migration_log_start,
+        .stop = vhost_migration_log_stop,
+    };
+
+    /* Vhost doesn't know if it's PCI and if it supports migration.
+     * We, howver, need a way to hook logging fuctions in here.
+     * Register the functions if virtio device supports migration.
+     */
+    if (hdev->vdev->vhost_cb)
+        hdev->vdev->vhost_cb(hdev->vdev, &vhostOps, hdev);
+
     return 0;
 fail_log:
     vhost_log_put(hdev, false);

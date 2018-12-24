@@ -1674,6 +1674,16 @@ static void virtio_pci_pre_plugged(DeviceState *d, Error **errp)
     virtio_add_feature(&vdev->host_features, VIRTIO_F_BAD_FEATURE);
 }
 
+static void vhost_register_migration_ops(VirtIODevice *vdev,
+                                         const struct MigrationOps *ops,
+                                         void *opaque)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(DEVICE(vdev)->parent_bus->parent);
+    PCIDevice *pci_dev = &proxy->pci_dev;
+
+    register_migration_ops(pci_dev, ops, opaque);
+}
+
 /* This is called by virtio-bus just after the device is plugged. */
 static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 {
@@ -1761,7 +1771,8 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         /* FIXME: 0x10000 is enough for virtio-net for now */
         migration_cap_init_exclusive_bar(&proxy->pci_dev, proxy->mi_bar_idx,
                                          vdev, 0x10000, errp);
-
+        /* Vhost will setup the ops. */
+        vdev->vhost_cb = vhost_register_migration_ops;
         virtio_pci_modern_mem_region_map(proxy, &proxy->isr, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->device, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->notify, &notify.cap);
