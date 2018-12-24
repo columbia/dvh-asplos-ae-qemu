@@ -228,7 +228,7 @@ static void handle_state_ctl_write(PCIDevice *dev, uint32_t val)
     }
 }
 
-/*
+#define MI_IOV_MAX_SIZE 0x80
 static void translate_log_base(PCIDevice *dev)
 {
     hwaddr baddr;
@@ -243,6 +243,7 @@ static void translate_log_base(PCIDevice *dev)
 
     baddr = ((uint64_t)mi->log_baddr_hi) << 32 | mi->log_baddr_lo;
     sz = mi->log_size;
+    printf("log_size: 0x%lx, max iov: 0x%x\n", sz, MI_IOV_MAX_SIZE);
     as = pci_device_iommu_address_space(dev);
 
     while (sz) {
@@ -250,19 +251,20 @@ static void translate_log_base(PCIDevice *dev)
         assert (len == 4096);
         iov[i].iov_len = len;
 
+        printf("hva: %lx\n", (unsigned long)iov[i].iov_base);
         sz -= len;
         baddr += len;
         i++;
     }
     printf("%s done\n", __func__);
 }
-*/
 
-#define MI_IOV_MAX_SIZE 0x80
 static void enable_logging(PCIDevice *dev)
 {
     dev->iov = g_malloc0(sizeof(struct iovec) * MI_IOV_MAX_SIZE);
-    //translate_log_base(dev);
+    translate_log_base(dev);
+
+    /* TODO: We want to pass the iov to the kernel */
 
     if (dev->mi_ops)
         dev->mi_ops->start(dev->mi_log_opaque);
