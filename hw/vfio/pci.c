@@ -3414,18 +3414,9 @@ static uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev, hwaddr iova, ram_addr_t
 {
     uint8_t *host;
     int ret;
-    int offset = 0;
-    int k = 0x17;
     int size = 8;
 
     host = vfio_create_mapping(vdev, iova, dev_size);
-
-    /* test val */
-    while (offset < dev_size) {
-        *(host + offset) = k;
-        offset += 4096;
-        k += 1;
-    }
 
     /* Write baddr */
     ret = pwrite(vdev->vbasedev.fd, &iova, size, vdev->mi_offset + MI_STATE_BADDR);
@@ -3491,10 +3482,10 @@ static int vfio_load(VFIOPCIDevice *vdev, QEMUFile *f, int version_id)
     int dev_state_size;
     uint32_t ctl;
     uint32_t val;
-    /* We assume this vfio device is PCI device */
     PCIDevice *pdev = &vdev->pdev;
-    uint8_t dev_state[0x10000];
-    off_t bar_offset = 0x40000000000;
+    hwaddr iova;
+    int size = 4;
+    uint8_t *state;
 
     pci_device_load(pdev, f);
 
@@ -3518,32 +3509,38 @@ static int vfio_load(VFIOPCIDevice *vdev, QEMUFile *f, int version_id)
     msix_unuse_all_vectors(pdev);
     msix_load(pdev, f);
 
-    /* get device state through QEMU file */
+    /* Get the device max size */
+    ret = pread(vdev->vbasedev.fd, &dev_state_size, size, vdev->mi_offset + MI_STATE_SIZE);
+    if (ret != size) {
+        printf("Fail to set the actual device state size: %d\n", ret);
+        return -1;
+    }
+
+    /* Set baddr to the device */
+    iova = 0x390000000;
+    state = vfio_set_state_addr(vdev, iova, dev_state_size);
+
+    /* get device size through QEMU file */
     dev_state_size = qemu_get_be32(f);
-    qemu_get_buffer(f, dev_state, dev_state_size);
 
-    /* write device state to device state area in the device*/
-    ret = pwrite(vdev->vbasedev.fd, &dev_state, dev_state_size, bar_offset + VIRTIO_PCI_COMMON_DEV_STATE_START);
-    if (ret != dev_state_size) {
-        printf("Fail to write device state. Requested: %d, written: %d\n",
-               dev_state_size, ret);
+    /* Set the device state size */
+    ret = pwrite(vdev->vbasedev.fd, &dev_state_size, size, vdev->mi_offset + MI_STATE_SIZE);
+    if (ret != size) {
+        printf("Fail to set the actual device state size: %d\n", ret);
         return -1;
     }
 
-    /* Send a command to restore device state from device state area */
-    ret = pwrite(vdev->vbasedev.fd, &dev_state_size, 4, bar_offset + VIRTIO_PCI_COMMON_STATE_RW);
-    if (ret != 4) {
-        printf("Fail to restore device state. ret: %d\n", ret);
+    /* Get the device state from the other end */
+    qemu_get_buffer(f, state, dev_state_size);
+
+    /* Restore the device state using migration cap */
+    val = MI_STATE_CTL_RESTORE;
+    ret = pwrite(vdev->vbasedev.fd, &val, size, vdev->mi_offset + MI_STATE_CTL);
+    if (ret != size) {
+        printf("Fail to restore device state: %d\n", ret);
         return -1;
     }
 
-    /* Start the device using migration cap */
-    val = 2;
-    ret = pwrite(vdev->vbasedev.fd, &val, 4, vdev->mi_offset + 0);
-    if (ret != 4) {
-        printf("Fail to write mi cap dev ctl: %d\n", ret);
-        return -1;
-    }
     return 0;
 }
 
