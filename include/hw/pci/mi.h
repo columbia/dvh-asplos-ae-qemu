@@ -54,6 +54,9 @@ struct migration_info {
 #define MI_STATE_BADDR_LO   8
 #define MI_STATE_BADDR_HI   12
 #define MI_LOG_CTL          16
+#define   MI_LOG_CTL_RESET   0
+#define   MI_LOG_CTL_ENABLE  1
+#define   MI_LOG_CTL_DISABLE 2
 #define MI_LOG_SIZE         20
 #define MI_LOG_BADDR_LO     24
 #define MI_LOG_BADDR_HI     28

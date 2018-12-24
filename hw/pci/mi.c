@@ -228,6 +228,64 @@ static void handle_state_ctl_write(PCIDevice *dev, uint32_t val)
     }
 }
 
+static void translate_log_base(PCIDevice *dev)
+{
+    hwaddr baddr;
+    AddressSpace *as;
+    size_t sz;
+    struct migration_info *mi = (struct migration_info *)dev->migration_info;
+    hwaddr len = 4096;
+    int i = 0;
+    struct iovec *iov = dev->iov;
+
+    printf("%s starts\n", __func__);
+
+    baddr = ((uint64_t)mi->log_baddr_hi) << 32 | mi->log_baddr_lo;
+    sz = mi->log_size;
+    as = pci_device_iommu_address_space(dev);
+
+    while (sz) {
+        iov[i].iov_base = dma_memory_map(as, baddr, &len, DMA_DIRECTION_FROM_DEVICE);
+        assert (len == 4096);
+        iov[i].iov_len = len;
+
+        sz -= len;
+        baddr += len;
+        i++;
+    }
+    printf("%s done\n", __func__);
+}
+
+#define MI_IOV_MAX_SIZE 0x80
+static void enable_logging(PCIDevice *dev)
+{
+    dev->iov = g_malloc0(sizeof(struct iovec) * MI_IOV_MAX_SIZE);
+    translate_log_base(dev);
+}
+
+static void disable_logging(PCIDevice *dev)
+{
+    g_free(dev->iov);
+}
+
+static void handle_log_ctl_write(PCIDevice *dev, uint32_t val)
+{
+    switch(val) {
+        case MI_LOG_CTL_RESET:
+            /* TODO: reset */
+            printf("mi cap log reset - todo\n");
+            break;
+        case MI_LOG_CTL_ENABLE:
+            enable_logging(dev);
+            break;
+        case MI_LOG_CTL_DISABLE:
+            disable_logging(dev);
+            break;
+        default:
+            printf("Writing %d to log ctl register is not defined\n", val);
+    }
+}
+
 static void migration_mmio_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
@@ -238,7 +296,7 @@ static void migration_mmio_write(void *opaque, hwaddr addr,
             handle_state_ctl_write(dev, val);
             break;
         case MI_LOG_CTL:
-            printf("writing to log ctl is not implemented\n");
+            handle_log_ctl_write(dev, val);
             break;
 
         case MI_STATE_BADDR_LO:
