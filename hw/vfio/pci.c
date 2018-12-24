@@ -3397,7 +3397,7 @@ static uint8_t *vfio_create_mapping(VFIOPCIDevice *vdev, hwaddr iova, size_t siz
 
     container = vdev->vbasedev.group->container;
     /* vaddr needs to be aligned by 4K */
-    vaddr = qemu_memalign(size, 0x1000);
+    vaddr = qemu_memalign(0x1000, size);
 
     ret = vfio_dma_map(container, iova, size, vaddr, false);
     if (ret) {
