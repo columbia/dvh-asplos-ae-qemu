@@ -228,6 +228,7 @@ static void handle_state_ctl_write(PCIDevice *dev, uint32_t val)
     }
 }
 
+/*
 static void translate_log_base(PCIDevice *dev)
 {
     hwaddr baddr;
@@ -255,14 +256,16 @@ static void translate_log_base(PCIDevice *dev)
     }
     printf("%s done\n", __func__);
 }
+*/
 
 #define MI_IOV_MAX_SIZE 0x80
 static void enable_logging(PCIDevice *dev)
 {
     dev->iov = g_malloc0(sizeof(struct iovec) * MI_IOV_MAX_SIZE);
-    translate_log_base(dev);
+    //translate_log_base(dev);
 
-    dev->mi_ops->start(dev->mi_log_opaque);
+    if (dev->mi_ops)
+        dev->mi_ops->start(dev->mi_log_opaque);
 }
 
 static void disable_logging(PCIDevice *dev)
@@ -392,6 +395,5 @@ void register_migration_ops(PCIDevice *dev, const struct MigrationOps *ops,
 {
     dev->mi_ops = ops;
     dev->mi_log_opaque = opaque;
-    return;
 }
 
