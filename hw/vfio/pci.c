@@ -3479,7 +3479,7 @@ static int vfio_save(VFIOPCIDevice *vdev, QEMUFile *f)
 static int vfio_load(VFIOPCIDevice *vdev, QEMUFile *f, int version_id)
 {
     int ret;
-    int dev_state_size;
+    int dev_state_size, dev_state_size_aligned;
     uint32_t ctl;
     uint32_t val;
     PCIDevice *pdev = &vdev->pdev;
@@ -3509,19 +3509,16 @@ static int vfio_load(VFIOPCIDevice *vdev, QEMUFile *f, int version_id)
     msix_unuse_all_vectors(pdev);
     msix_load(pdev, f);
 
-    /* Get the device max size */
-    ret = pread(vdev->vbasedev.fd, &dev_state_size, size, vdev->mi_offset + MI_STATE_SIZE);
-    if (ret != size) {
-        printf("Fail to set the actual device state size: %d\n", ret);
-        return -1;
-    }
+    /* get device size through QEMU file */
+    dev_state_size = qemu_get_be32(f);
 
     /* Set baddr to the device */
     iova = 0x390000000;
-    state = vfio_set_state_addr(vdev, iova, dev_state_size);
+    dev_state_size_aligned = dev_state_size & ~(0x1000 - 1);
+    if (dev_state_size & (0x1000 - 1))
+        dev_state_size_aligned += 0x1000;
 
-    /* get device size through QEMU file */
-    dev_state_size = qemu_get_be32(f);
+    state = vfio_set_state_addr(vdev, iova, dev_state_size_aligned);
 
     /* Set the device state size */
     ret = pwrite(vdev->vbasedev.fd, &dev_state_size, size, vdev->mi_offset + MI_STATE_SIZE);
