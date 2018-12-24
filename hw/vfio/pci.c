@@ -120,6 +120,7 @@ static void vfio_intx_eoi(VFIODevice *vbasedev)
 #define MI_STATE_BADDR_HI   12
 #define MI_LOG_CTL          16
 #define MI_LOG_SIZE         20
+#define MI_LOG_BADDR        24
 #define MI_LOG_BADDR_LO     24
 #define MI_LOG_BADDR_HI     28
 
@@ -144,7 +145,8 @@ static uint8_t *vfio_create_mapping(VFIOPCIDevice *vdev, hwaddr iova, size_t siz
     return (uint8_t *)vaddr;
 }
 
-static uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev, hwaddr iova, ram_addr_t dev_size)
+static uint8_t *vfio_set_addr(VFIOPCIDevice *vdev, hwaddr iova,
+                              ram_addr_t dev_size, off_t offset)
 {
     uint8_t *host;
     int ret;
@@ -153,7 +155,7 @@ static uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev, hwaddr iova, ram_addr_t
     host = vfio_create_mapping(vdev, iova, dev_size);
 
     /* Write baddr */
-    ret = pwrite(vdev->vbasedev.fd, &iova, size, vdev->mi_offset + MI_STATE_BADDR);
+    ret = pwrite(vdev->vbasedev.fd, &iova, size, vdev->mi_offset + offset);
     if (ret != size) {
         printf("Fail to write the device state baddr: %d\n", ret);
     }
@@ -161,8 +163,25 @@ static uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev, hwaddr iova, ram_addr_t
     return host;
 }
 
+static uint8_t *vfio_set_state_addr(VFIOPCIDevice *vdev, hwaddr iova,
+                                    ram_addr_t dev_size)
+{
+    return vfio_set_addr(vdev, iova, dev_size, MI_STATE_BADDR);
+}
+
+static uint8_t *vfio_set_log_addr(VFIOPCIDevice *vdev, hwaddr iova,
+                                  ram_addr_t dev_size)
+{
+    return vfio_set_addr(vdev, iova, dev_size, MI_LOG_BADDR);
+}
+
 static void vfio_pci_log(VFIODevice *vbasedev, int enable)
 {
+    VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
+    /* Any iova value would do unless overwrapping nVM addr */
+    hwaddr iova = 0x390000000;
+    /* 0x60000 is almost enough for 12G nested VM */
+    size_t log_size = 0x80000;
     off_t bar_offset = 0x40000000000;
     int ret;
     int size = 4;
@@ -172,6 +191,16 @@ static void vfio_pci_log(VFIODevice *vbasedev, int enable)
         printf("Fail to start/stop logging: enable: %d ret: %d\n", enable, ret);
     } else {
         printf("Start/stop logging: enable: %d\n", enable);
+    }
+
+    /* 1. alloc log mem. set size and pointer */
+    vdev->mi_log_base = vfio_set_log_addr(vdev, iova, log_size);
+
+    /* Set the log size */
+    ret = pwrite(vdev->vbasedev.fd, &dev_state_size, size, vdev->mi_offset + MI_LOG_SIZE);
+    if (ret != size) {
+        printf("Fail to set the actual device state size: %d\n", ret);
+        return -1;
     }
 }
 
