@@ -385,3 +385,11 @@ int migration_cap_init_exclusive_bar(PCIDevice *dev, uint8_t bar_nr, void *opaqu
     return 0;
 }
 
+void register_migration_ops(PCIDevice *dev, const struct MigrationOps *ops,
+                            void *opaque)
+{
+    dev->mi_ops = ops;
+    dev->mi_log_opaque = opaque;
+    return;
+}
+

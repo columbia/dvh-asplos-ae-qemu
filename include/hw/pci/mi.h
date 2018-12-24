@@ -4,6 +4,14 @@
 #include "qemu-common.h"
 #include "hw/pci/pci.h"
 
+
+struct MigrationOps{
+    void (*start)(void *opaque);
+    void (*stop)(void *opaque);
+};
+
+void register_migration_ops(PCIDevice *dev, const struct MigrationOps *ops,
+                            void *opaque);
 void migration_write_config(PCIDevice *dev, uint32_t addr,
                             uint32_t val, int len);
 

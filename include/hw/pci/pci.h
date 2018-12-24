@@ -10,6 +10,8 @@
 
 #include "hw/pci/pcie.h"
 
+#include "hw/pci/mi.h"
+
 extern bool pci_available;
 
 /* PCI bus */
@@ -363,6 +365,8 @@ struct PCIDevice {
     MemoryRegion migration_info_exclusive_bar;
     void *mi_opaque; /* Use for finding the device in se list */
     void *iov;
+    const struct MigrationOps *mi_ops;
+    void *mi_log_opaque;
 };
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
