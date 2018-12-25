@@ -91,16 +91,16 @@ static int vhost_kernel_set_log_base(struct vhost_dev *dev, uint64_t base,
     return vhost_kernel_call(dev, VHOST_SET_LOG_BASE, &base);
 }
 
-static int vhost_kernel_set_log_iov_base(struct vhost_dev *dev, uint64_t base,
-                                     struct vhost_log *log)
+static int vhost_kernel_set_log_iov_base(struct vhost_dev *dev, void *val,
+                                         struct vhost_log *log)
 {
-    return vhost_kernel_call(dev, VHOST_SET_LOG_IOV_BASE, &base);
+    return vhost_kernel_call(dev, VHOST_SET_LOG_IOV_BASE, val);
 }
 
-static int vhost_kernel_set_log_iov_size(struct vhost_dev *dev, uint64_t base,
-                                     struct vhost_log *log)
+static int vhost_kernel_set_log_iov_size(struct vhost_dev *dev, void *val,
+                                         struct vhost_log *log)
 {
-    return vhost_kernel_call(dev, VHOST_SET_LOG_IOV_SIZE, &base);
+    return vhost_kernel_call(dev, VHOST_SET_LOG_IOV_SIZE, val);
 }
 
 static int vhost_kernel_set_mem_table(struct vhost_dev *dev,

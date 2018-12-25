@@ -1216,22 +1216,19 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
     event_notifier_cleanup(&vq->masked_notifier);
 }
 
-static void vhost_migration_log_set_addr(void *opaque, void *iov, int size)
+static void vhost_migration_log_set_addr(void *opaque, void *iov, uint64_t size)
 {
     struct vhost_dev *hdev = opaque;
     int r;
-    uint64_t t;
 
     printf("%s is called YEAH\n", __func__);
 
-    t = (uint64_t)iov;
-    r = hdev->vhost_ops->vhost_set_log_iov_base(hdev, t, 0);
+    r = hdev->vhost_ops->vhost_set_log_iov_base(hdev, iov, 0);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_set_log_iov_base failed");
     }
 
-    t = (uint64_t) &size;
-    r = hdev->vhost_ops->vhost_set_log_iov_size(hdev, t, 0);
+    r = hdev->vhost_ops->vhost_set_log_iov_size(hdev, &size, 0);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_set_log_iov_size failed");
     }
