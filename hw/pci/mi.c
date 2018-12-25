@@ -269,8 +269,8 @@ static void enable_logging(PCIDevice *dev)
     dev->mi_ops->set_addr(dev->mi_log_opaque, dev->iov,
                           sizeof(struct iovec) * MI_IOV_MAX_SIZE);
 
-    if (dev->mi_ops)
-        dev->mi_ops->start(dev->mi_log_opaque);
+    assert (dev->mi_ops->start != 0);
+    dev->mi_ops->start(dev->mi_log_opaque);
 }
 
 static void disable_logging(PCIDevice *dev)
