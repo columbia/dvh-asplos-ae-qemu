@@ -810,7 +810,7 @@ err_features:
     return r;
 }
 
-int __vhost_migration_log(struct vhost_dev *dev, int enable)
+int __vhost_migration_log(struct vhost_dev *dev, int enable, bool resize)
 {
     int r;
     if (!!enable == dev->log_enabled) {
@@ -827,7 +827,8 @@ int __vhost_migration_log(struct vhost_dev *dev, int enable)
         }
         vhost_log_put(dev, false);
     } else {
-        vhost_dev_log_resize(dev, vhost_get_log_size(dev));
+        if (resize)
+            vhost_dev_log_resize(dev, vhost_get_log_size(dev));
         r = vhost_dev_set_log(dev, true);
         if (r < 0) {
             return r;
@@ -841,7 +842,7 @@ static int vhost_migration_log(MemoryListener *listener, int enable)
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
-    return __vhost_migration_log(dev, enable);
+    return __vhost_migration_log(dev, enable, true);
 }
 
 static void vhost_log_global_start(MemoryListener *listener)

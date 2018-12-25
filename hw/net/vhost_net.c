@@ -384,7 +384,7 @@ void vhost_net_migration_log(VirtIODevice *dev, NetClientState *ncs,
 
     for (i = 0; i < total_queues; i++) {
         hdev = &get_vhost_net(ncs[i].peer)->dev;
-        __vhost_migration_log(hdev, enable);
+        __vhost_migration_log(hdev, enable, true);
     }
 }
 
