@@ -6,7 +6,7 @@
 
 
 struct MigrationOps{
-    void (*set_addr)(void *opaque, void *iov, int size);
+    void (*set_addr)(void *opaque, void *iov, uint64_t size);
     void (*start)(void *opaque);
     void (*stop)(void *opaque);
 };
