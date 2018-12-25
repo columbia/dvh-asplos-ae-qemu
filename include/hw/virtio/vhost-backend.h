@@ -115,6 +115,8 @@ typedef struct VhostOps {
     vhost_scsi_clear_endpoint_op vhost_scsi_clear_endpoint;
     vhost_scsi_get_abi_version_op vhost_scsi_get_abi_version;
     vhost_set_log_base_op vhost_set_log_base;
+    vhost_set_log_base_op vhost_set_log_iov_base;
+    vhost_set_log_base_op vhost_set_log_iov_size;
     vhost_set_mem_table_op vhost_set_mem_table;
     vhost_set_vring_addr_op vhost_set_vring_addr;
     vhost_set_vring_endian_op vhost_set_vring_endian;

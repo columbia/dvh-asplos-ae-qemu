@@ -126,6 +126,8 @@ struct vhost_memory {
  * The bit is set using an atomic 32 bit operation. */
 /* Set base address for logging. */
 #define VHOST_SET_LOG_BASE _IOW(VHOST_VIRTIO, 0x04, __u64)
+#define VHOST_SET_LOG_IOV_BASE _IOW(VHOST_VIRTIO, 0x70, __u64)
+#define VHOST_SET_LOG_IOV_SIZE _IOW(VHOST_VIRTIO, 0x71, __u64)
 /* Specify an eventfd file descriptor to signal on log write. */
 #define VHOST_SET_LOG_FD _IOW(VHOST_VIRTIO, 0x07, int)
 

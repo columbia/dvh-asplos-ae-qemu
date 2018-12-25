@@ -91,6 +91,18 @@ static int vhost_kernel_set_log_base(struct vhost_dev *dev, uint64_t base,
     return vhost_kernel_call(dev, VHOST_SET_LOG_BASE, &base);
 }
 
+static int vhost_kernel_set_log_iov_base(struct vhost_dev *dev, uint64_t base,
+                                     struct vhost_log *log)
+{
+    return vhost_kernel_call(dev, VHOST_SET_LOG_IOV_BASE, &base);
+}
+
+static int vhost_kernel_set_log_iov_size(struct vhost_dev *dev, uint64_t base,
+                                     struct vhost_log *log)
+{
+    return vhost_kernel_call(dev, VHOST_SET_LOG_IOV_SIZE, &base);
+}
+
 static int vhost_kernel_set_mem_table(struct vhost_dev *dev,
                                       struct vhost_memory *mem)
 {
@@ -243,6 +255,8 @@ static const VhostOps kernel_ops = {
         .vhost_scsi_clear_endpoint = vhost_kernel_scsi_clear_endpoint,
         .vhost_scsi_get_abi_version = vhost_kernel_scsi_get_abi_version,
         .vhost_set_log_base = vhost_kernel_set_log_base,
+        .vhost_set_log_iov_base = vhost_kernel_set_log_iov_base,
+        .vhost_set_log_iov_size = vhost_kernel_set_log_iov_size,
         .vhost_set_mem_table = vhost_kernel_set_mem_table,
         .vhost_set_vring_addr = vhost_kernel_set_vring_addr,
         .vhost_set_vring_endian = vhost_kernel_set_vring_endian,
