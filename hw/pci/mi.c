@@ -264,7 +264,10 @@ static void enable_logging(PCIDevice *dev)
     dev->iov = g_malloc0(sizeof(struct iovec) * MI_IOV_MAX_SIZE);
     translate_log_base(dev);
 
-    /* TODO: We want to pass the iov to the kernel */
+    assert (dev->mi_ops != 0);
+    assert (dev->mi_ops->set_addr != 0);
+    dev->mi_ops->set_addr(dev->mi_log_opaque, dev->iov,
+                          sizeof(struct iovec) * MI_IOV_MAX_SIZE);
 
     if (dev->mi_ops)
         dev->mi_ops->start(dev->mi_log_opaque);
