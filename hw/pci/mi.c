@@ -275,6 +275,10 @@ static void enable_logging(PCIDevice *dev)
 
 static void disable_logging(PCIDevice *dev)
 {
+
+    assert (dev->mi_ops != 0);
+    assert (dev->mi_ops->stop != 0);
+    dev->mi_ops->stop(dev->mi_log_opaque);
     g_free(dev->iov);
 }
 
