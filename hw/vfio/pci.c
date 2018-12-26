@@ -119,6 +119,9 @@ static void vfio_intx_eoi(VFIODevice *vbasedev)
 #define MI_STATE_BADDR_LO   8
 #define MI_STATE_BADDR_HI   12
 #define MI_LOG_CTL          16
+#define   MI_LOG_CTL_RESET   0
+#define   MI_LOG_CTL_ENABLE  1
+#define   MI_LOG_CTL_DISABLE 2
 #define MI_LOG_SIZE         20
 #define MI_LOG_BADDR        24
 #define MI_LOG_BADDR_LO     24
@@ -182,25 +185,26 @@ static void vfio_pci_log(VFIODevice *vbasedev, int enable)
     hwaddr iova = 0x390000000;
     /* 0x60000 is almost enough for 12G nested VM */
     size_t log_size = 0x80000;
-    off_t bar_offset = 0x40000000000;
     int ret;
+    int val;
     int size = 4;
-
-    ret = pwrite(vbasedev->fd, &enable, size, bar_offset + VIRTIO_PCI_COMMON_STATE_LOG);
-    if (ret != size) {
-        printf("Fail to start/stop logging: enable: %d ret: %d\n", enable, ret);
-    } else {
-        printf("Start/stop logging: enable: %d\n", enable);
-    }
 
     /* 1. alloc log mem. set size and pointer */
     vdev->mi_log_base = vfio_set_log_addr(vdev, iova, log_size);
 
-    /* Set the log size */
-    ret = pwrite(vdev->vbasedev.fd, &dev_state_size, size, vdev->mi_offset + MI_LOG_SIZE);
+    /* 2. Set the log size */
+    ret = pwrite(vdev->vbasedev.fd, &log_size, size, vdev->mi_offset + MI_LOG_SIZE);
     if (ret != size) {
         printf("Fail to set the actual device state size: %d\n", ret);
-        return -1;
+        return;
+    }
+
+    /* 3. Enable logging */
+    val = MI_LOG_CTL_ENABLE;
+    ret = pwrite(vdev->vbasedev.fd, &val, size, vdev->mi_offset + MI_LOG_CTL);
+    if (ret != size) {
+        printf("Fail to set the actual device state size: %d\n", ret);
+        return;
     }
 }
 
