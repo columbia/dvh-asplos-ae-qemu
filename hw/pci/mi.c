@@ -251,7 +251,6 @@ static void translate_log_base(PCIDevice *dev)
         assert (len == 4096);
         iov[i].iov_len = len;
 
-        printf("hva: %lx\n", (unsigned long)iov[i].iov_base);
         sz -= len;
         baddr += len;
         i++;

@@ -1239,7 +1239,11 @@ static void vhost_migration_log_set_addr(void *opaque, void *iov, uint64_t size)
 
 static void vhost_migration_log_start(void *opaque)
 {
+    struct vhost_dev *dev = opaque;
     printf("%s is called YEAH\n", __func__);
+
+    /* enable, no resize */
+    __vhost_migration_log(dev, true, false);
     return;
 }
 
