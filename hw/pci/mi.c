@@ -12,16 +12,6 @@
 
 #define PCI_CAP_MI_SIZEOF 8
 #define PCI_MI_CONFIG 4
-#define PCI_MI_DEV_CTL 2
-#define PCI_MI_LOG_CTL 3
-#define PCI_MI_LOG_BADDR 4
-
-
-
-static int migration_present(PCIDevice *dev)
-{
-    return dev->cap_present & QEMU_PCI_CAP_MI;
-}
 
 static void copy_device_state(PCIDevice *dev, uint8_t *dev_state, size_t sz,
                               bool from_device)
