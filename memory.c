@@ -2546,30 +2546,6 @@ void memory_global_dirty_log_sync(void)
     memory_region_sync_dirty_bitmap(NULL);
 }
 
-void memory_global_dirty_log_sync_final(void)
-{
-    MemoryListener *listener;
-    AddressSpace *as;
-    FlatView *view;
-    FlatRange *fr;
-
-    QTAILQ_FOREACH(listener, &memory_listeners, link) {
-        if (!listener->log_sync_final) {
-            continue;
-        }
-        as = listener->address_space;
-        view = address_space_get_flatview(as);
-        FOR_EACH_FLAT_RANGE(fr, view) {
-            if (fr->dirty_log_mask) {
-                MemoryRegionSection mrs = section_from_flat_range(fr, view);
-
-                listener->log_sync_final(listener, &mrs);
-            }
-        }
-        flatview_unref(view);
-    }
-}
-
 static VMChangeStateEntry *vmstate_change;
 
 void memory_global_dirty_log_start(void)

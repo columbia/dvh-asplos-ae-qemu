@@ -1647,8 +1647,6 @@ static void __migration_bitmap_sync(RAMState *rs, bool complete)
 
     trace_migration_bitmap_sync_start();
     memory_global_dirty_log_sync();
-    if (complete)
-    	memory_global_dirty_log_sync_final();
 
     qemu_mutex_lock(&rs->bitmap_mutex);
     rcu_read_lock();
