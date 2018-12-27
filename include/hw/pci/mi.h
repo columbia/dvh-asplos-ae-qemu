@@ -13,8 +13,6 @@ struct MigrationOps{
 
 void register_migration_ops(PCIDevice *dev, const struct MigrationOps *ops,
                             void *opaque);
-void migration_write_config(PCIDevice *dev, uint32_t addr,
-                            uint32_t val, int len);
 
 void migration_cap_init(PCIDevice *dev, Error **errp);
 

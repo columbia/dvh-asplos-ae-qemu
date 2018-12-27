@@ -12,16 +12,6 @@
 
 #define PCI_CAP_MI_SIZEOF 8
 #define PCI_MI_CONFIG 4
-#define PCI_MI_DEV_CTL 2
-#define PCI_MI_LOG_CTL 3
-#define PCI_MI_LOG_BADDR 4
-
-
-
-static int migration_present(PCIDevice *dev)
-{
-    return dev->cap_present & QEMU_PCI_CAP_MI;
-}
 
 static void copy_device_state(PCIDevice *dev, uint8_t *dev_state, size_t sz,
                               bool from_device)
@@ -117,46 +107,6 @@ static void save_device_state(PCIDevice *dev) {
 
     /* 4. setup the device state size */
     mi->state_size = dev_state_size;
-}
-
-void migration_write_config(PCIDevice *dev, uint32_t addr,
-                            uint32_t val, int len)
-
-{
-    int offset;
-    uint8_t *hva;
-    AddressSpace *as;
-    dma_addr_t pa, lenn;
-
-    if (!migration_present(dev) ||
-        !ranges_overlap(addr, len, dev->migration_cap, PCI_CAP_MI_SIZEOF)) {
-        return;
-    }
-
-    offset = addr - dev->migration_cap;
-    switch (offset) {
-        case PCI_MI_DEV_CTL:
-            assert(len == 1);
-            if (val == 0)
-                save_device_state(dev);
-            else
-                restore_device_state(dev);
-            break;
-        case PCI_MI_LOG_BADDR:
-            printf("log baddr is called!\n");
-
-            as = pci_device_iommu_address_space(dev);
-            pa = 0x380000000;
-            lenn = 4096;
-
-            hva = dma_memory_map(as, pa, &lenn, DMA_DIRECTION_TO_DEVICE);
-            printf("The first byte is 0x%x\n", *hva);
-            break;
-
-        default:
-            printf("offset 0x%x is not handled\n", offset);
-            ;
-    }
 }
 
 void migration_cap_init(PCIDevice *dev, Error **errp)
