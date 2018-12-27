@@ -1385,7 +1385,6 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int 
 
     msi_write_config(d, addr, val_in, l);
     msix_write_config(d, addr, val_in, l);
-    migration_write_config(d, addr, val_in, l);
 }
 
 /***********************************************************/
