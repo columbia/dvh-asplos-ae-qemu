@@ -1167,41 +1167,6 @@ static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
     return offset;
 }
 
-static uint32_t save_device_state(VirtIOPCIProxy *proxy)
-{
-    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    SaveStateEntry *se;
-    QEMUFile *f;
-    uint32_t val = 0;
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
-    DeviceClass *dc = DEVICE_CLASS(vdc);
-    int dev_state_size;
-    int ret;
-
-    se = qemu_savevm_get_se(dc->vmsd);
-    if (!se) {
-        printf("WARNING: can't find device %s", dc->vmsd->name);
-        return 0;
-    }
-
-    /* At this point, the device is stopped. */
-    f = create_mem_QEMUFile();
-    if (!f)
-        error_report("unable to create in-memory QEMU file");
-
-    ret = qemu_savevm_save_device_state(f, se, &dev_state_size);
-    if (!ret) {
-        memcpy(get_mr_host_addr(&proxy->log_test.mr), qemu_get_dev_state(f), dev_state_size);
-        val = dev_state_size;
-    } else {
-        printf("WARNING: virtio dev state save is failed: %d.\n", ret);
-        val = 0;
-    }
-
-    qemu_fclose(f);
-    return val;
-}
-
 static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
                                        unsigned size)
 {
@@ -1280,9 +1245,6 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
     case VIRTIO_PCI_COMMON_Q_USEDHI:
         val = proxy->vqs[vdev->queue_sel].used[1];
         break;
-    case VIRTIO_PCI_COMMON_STATE_RW:
-        val = save_device_state(proxy);
-        break;
 
     default:
         val = 0;
@@ -1291,35 +1253,11 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
     return val;
 }
 
-static void restore_device_state(VirtIOPCIProxy *proxy, uint64_t val)
-{
-    QEMUFile *f;
-    uint8_t section_type;
-    int ret;
-
-    f = create_mem_QEMUFile();
-    if (!f)
-        error_report("unable to create in-memory QEMU file");
-
-    memcpy(qemu_get_dev_state(f), get_mr_host_addr(&proxy->log_test.mr), val);
-
-    section_type = qemu_get_byte(f);
-    if (section_type != QEMU_VM_SECTION_FULL)
-        printf("WARNING: section type is not FULL: %d\n", section_type);
-    ret = qemu_loadvm_section_start_full(f, NULL);
-    if (ret < 0)
-        printf("WARNING: Restoring virtio device state is failed\n");
-
-    qemu_fclose(f);
-}
-
 static void virtio_pci_common_write(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
     VirtIOPCIProxy *proxy = opaque;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    VirtIONetPCI *vnet_pci;
-    VirtIONet *vnet;
 
     switch (addr) {
     case VIRTIO_PCI_COMMON_DFSELECT:
@@ -1406,42 +1344,6 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         break;
     case VIRTIO_PCI_COMMON_Q_USEDHI:
         proxy->vqs[vdev->queue_sel].used[1] = val;
-        break;
-    case VIRTIO_PCI_COMMON_STATE_RW:
-        restore_device_state(proxy, val);
-        break;
-    case VIRTIO_PCI_COMMON_LOG:
-        printf("Assigned device logging: %d\n", (int)val);
-        vnet_pci = VIRTIO_NET_PCI(proxy);
-        vnet = &vnet_pci->vdev;
-        virtio_net_vhost_migration_log(vnet, val);
-        break;
-    case VIRTIO_PCI_COMMON_LOG_SYNC:
-   //     printf("Assigned device sync\n");
-        vnet= &VIRTIO_NET_PCI(proxy)->vdev;
-        /*
-        printf("Sync. start: %lx, end: %lx\n",
-                ((uint64_t)proxy->start_addr[1]) << 32 | proxy->start_addr[0],
-                ((uint64_t)proxy->end_addr[1]) << 32 | proxy->end_addr[0]);
-                */
-        /* This copies from original vhost_log buffer to the device's log buffer */
-        virtio_net_vhost_log_sync(vnet, get_mr_host_addr(&proxy->log_test.mr) + DEV_BUF_SIZE,
-                ((uint64_t)proxy->start_addr[1]) << 32 | proxy->start_addr[0],
-                ((uint64_t)proxy->end_addr[1]) << 32 | proxy->end_addr[0]);
-    //    printf("Assigned device sync done\n");
-        break;
-
-    case VIRTIO_PCI_COMMON_STATE_LOG_RANGE_START_LO:
-        proxy->start_addr[0] = val;
-        break;
-    case VIRTIO_PCI_COMMON_STATE_LOG_RANGE_START_HI:
-        proxy->start_addr[1] = val;
-        break;
-    case VIRTIO_PCI_COMMON_STATE_LOG_RANGE_END_LO:
-        proxy->end_addr[0] = val;
-        break;
-    case VIRTIO_PCI_COMMON_STATE_LOG_RANGE_END_HI:
-        proxy->end_addr[1] = val;
         break;
 
     default:

@@ -130,40 +130,6 @@ static void virtio_net_announce_timer(void *opaque)
     virtio_notify_config(vdev);
 }
 
-void virtio_net_vhost_stop_force(void *opaque)
-{
-    VirtIONet *n = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
-    int queues = n->multiqueue ? n->max_queues : 1;
-
-    if (n->vhost_started) {
-        vhost_net_stop(vdev, n->nic->ncs, queues);
-        n->vhost_started = 0;
-    }
-}
-
-void virtio_net_vhost_migration_log(void *opaque, int enable)
-{
-    VirtIONet *n = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
-    int queues = n->multiqueue ? n->max_queues : 1;
-
-    if (n->vhost_started) {
-        vhost_net_migration_log(vdev, n->nic->ncs, queues, enable);
-    }
-}
-
-void virtio_net_vhost_log_sync(void *opaque, uint8_t *log_base, hwaddr start, hwaddr end)
-{
-    VirtIONet *n = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
-    int queues = n->multiqueue ? n->max_queues : 1;
-
-    if (n->vhost_started) {
-        vhost_net_log_sync(vdev, n->nic->ncs, queues, log_base, start, end);
-    }
-}
-
 static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
