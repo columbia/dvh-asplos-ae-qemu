@@ -1206,16 +1206,12 @@ static void vhost_migration_log_set_addr(void *opaque, void *iov, uint64_t size)
 
 static void vhost_migration_log_start(void *opaque)
 {
-    struct vhost_dev *dev = opaque;
-    printf("%s is called YEAH\n", __func__);
-
-    __vhost_migration_log(dev, true);
-    return;
+    __vhost_migration_log((struct vhost_dev *)opaque, true);
 }
 
 static void vhost_migration_log_stop(void *opaque)
 {
-    return;
+    __vhost_migration_log((struct vhost_dev *)opaque, false);
 }
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
