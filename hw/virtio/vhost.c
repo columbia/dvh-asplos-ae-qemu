@@ -139,43 +139,12 @@ static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
     return 0;
 }
 
-void __vhost_log_sync(struct vhost_dev *dev, uint8_t *log_base, hwaddr start, hwaddr end)
-{
-
-    vhost_log_chunk_t *log = dev->log->log;
-    vhost_log_chunk_t *log_curr;
-
-    vhost_log_chunk_t *from = log + start / VHOST_LOG_CHUNK;
-    vhost_log_chunk_t *to = log + end / VHOST_LOG_CHUNK + 1;
-
-    uint64_t addr = QEMU_ALIGN_DOWN(start, VHOST_LOG_CHUNK);
-
-    log_curr = (vhost_log_chunk_t *)log_base + start / VHOST_LOG_CHUNK;
-    for (;from < to; ++from, ++log_curr) {
-        vhost_log_chunk_t log;
-        /* We first check with non-atomic: much cheaper,
-         * and we expect non-dirty to be the common case. */
-        if (!*from) {
-            addr += VHOST_LOG_CHUNK;
-            *log_curr = 0;
-            continue;
-        }
-        /* Data must be read atomically. We don't really need barrier semantics
-         * but it's easier to use atomic_* than roll our own. */
-        log = atomic_xchg(from, 0);
-        if (log)
-            *log_curr = log;
-        addr += VHOST_LOG_CHUNK;
-    }
-}
-
 static void vhost_log_sync(MemoryListener *listener,
-                          MemoryRegionSection *section) {
+                          MemoryRegionSection *section)
+{
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
-
     vhost_sync_dirty_bitmap(dev, section, 0x0, ~0x0ULL);
-
 }
 
 static void vhost_log_sync_range(struct vhost_dev *dev,
@@ -227,7 +196,6 @@ static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
         memset(log->log, 0, logsize);
     } else {
         log->log = g_malloc0(logsize);
-        printf("Alloc 0x%lxB for vhost log\n", logsize);
     }
 
     log->size = size;
@@ -810,7 +778,7 @@ err_features:
     return r;
 }
 
-int __vhost_migration_log(struct vhost_dev *dev, int enable, bool resize)
+static int __vhost_migration_log(struct vhost_dev *dev, int enable)
 {
     int r;
     if (!!enable == dev->log_enabled) {
@@ -827,8 +795,7 @@ int __vhost_migration_log(struct vhost_dev *dev, int enable, bool resize)
         }
         vhost_log_put(dev, false);
     } else {
-        if (resize)
-            vhost_dev_log_resize(dev, vhost_get_log_size(dev));
+        vhost_dev_log_resize(dev, vhost_get_log_size(dev));
         r = vhost_dev_set_log(dev, true);
         if (r < 0) {
             return r;
@@ -842,7 +809,7 @@ static int vhost_migration_log(MemoryListener *listener, int enable)
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
-    return __vhost_migration_log(dev, enable, true);
+    return __vhost_migration_log(dev, enable);
 }
 
 static void vhost_log_global_start(MemoryListener *listener)
@@ -1242,8 +1209,7 @@ static void vhost_migration_log_start(void *opaque)
     struct vhost_dev *dev = opaque;
     printf("%s is called YEAH\n", __func__);
 
-    /* enable, no resize */
-    __vhost_migration_log(dev, true, false);
+    __vhost_migration_log(dev, true);
     return;
 }
 

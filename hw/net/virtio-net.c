@@ -27,7 +27,6 @@
 #include "hw/virtio/virtio-access.h"
 #include "migration/misc.h"
 #include "standard-headers/linux/ethtool.h"
-#include "hw/virtio/virtio-pci.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 
