@@ -172,6 +172,7 @@ typedef struct VFIOPCIDevice {
     uint8_t mi_cap;
     off_t mi_offset;
     uint8_t *mi_log_base;
+    uint64_t mi_log_size;
 } VFIOPCIDevice;
 
 uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);

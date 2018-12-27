@@ -198,6 +198,7 @@ static void vfio_pci_log(VFIODevice *vbasedev, int enable)
         printf("Fail to set the actual device state size: %d\n", ret);
         return;
     }
+    vdev->mi_log_size = log_size;
 
     /* 3. Enable logging */
     val = MI_LOG_CTL_ENABLE;
@@ -208,84 +209,60 @@ static void vfio_pci_log(VFIODevice *vbasedev, int enable)
     }
 }
 
-static void vfio_sync_dirty_bitmap(struct vhost_dev *dev,
-                                   MemoryRegionSection *section,
-                                   hwaddr first,
-                                   hwaddr last)
+/* stole from vhost */
+typedef unsigned long log_chunk_t;
+#define LOG_PAGE 0x1000
+#define LOG_BITS (8 * sizeof(log_chunk_t))
+#define LOG_CHUNK (LOG_PAGE * LOG_BITS)
+static void log_sync_region(MemoryRegionSection *section,
+                            uint64_t start, uint64_t end,
+                            log_chunk_t *log, uint64_t log_size)
 {
-    hwaddr start_addr;
-    hwaddr end_addr;
+    log_chunk_t *from = log + start / LOG_CHUNK;
+    log_chunk_t *to = log + end / LOG_CHUNK + 1;
+    uint64_t addr = QEMU_ALIGN_DOWN(start, LOG_CHUNK);
 
-    if (!dev->log_enabled || !dev->started)
+    if (end < start) {
         return;
-    start_addr = section->offset_within_address_space;
-    end_addr = range_get_last(start_addr, int128_get64(section->size));
-    start_addr = MAX(first, start_addr);
-    end_addr = MIN(last, end_addr);
+    }
+    assert(end / LOG_CHUNK < log_size);
+    assert(start / LOG_CHUNK < log_size);
 
-    vhost_dev_sync_region(dev, section, start_addr, end_addr, start_addr, end_addr);
+    for (;from < to; ++from) {
+        log_chunk_t log;
+        /* We first check with non-atomic: much cheaper,
+         * and we expect non-dirty to be the common case. */
+        if (!*from) {
+            addr += LOG_CHUNK;
+            continue;
+        }
+        /* Data must be read atomically. We don't really need barrier semantics
+         * but it's easier to use atomic_* than roll our own. */
+        log = atomic_xchg(from, 0);
+        while (log) {
+            int bit = ctzl(log);
+            hwaddr page_addr;
+            hwaddr section_offset;
+            hwaddr mr_offset;
+            page_addr = addr + bit * LOG_PAGE;
+            section_offset = page_addr - section->offset_within_address_space;
+            mr_offset = section_offset + section->offset_within_region;
+            memory_region_set_dirty(section->mr, mr_offset, LOG_PAGE);
+            log &= ~(0x1ull << bit);
+        }
+        addr += LOG_CHUNK;
+    }
 }
 
 static void vfio_pci_log_sync(VFIODevice *vbasedev, MemoryRegionSection *section)
 {
-    struct vhost_dev dev = {};
-    struct vhost_log log = {};
-    off_t bar_offset = 0x40000000000;
-    off_t offset;
-    int size;
-    int dummy = 0;
-    int fd = vbasedev->fd;
-    int ret;
-    hwaddr start_addr;
-    hwaddr end_addr;
-    uint8_t *dirty_log;
 
-    /* log.size: how many of vhost_log_chunk_t is required */
-    log.size = LOG_BUF_SIZE / 8;
-    log.refcnt = 1;
-    log.fd = -1;
+    VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
+    log_chunk_t *log_base = (log_chunk_t *) vdev->mi_log_base;
+    hwaddr start_addr = section->offset_within_address_space;
+    hwaddr end_addr = range_get_last(start_addr, int128_get64(section->size));
 
-    dev.log = &log;
-    dev.log_enabled = 1;
-    dev.started = 1;
-    dev.log_size = LOG_BUF_SIZE / 8;
-
-    start_addr = section->offset_within_address_space;
-    end_addr = range_get_last(start_addr, int128_get64(section->size));
-
-    offset = bar_offset + VIRTIO_PCI_COMMON_STATE_LOG_RANGE_START;
-    size = 8;
-    ret = pwrite(fd, &start_addr, size, offset);
-
-    offset = bar_offset + VIRTIO_PCI_COMMON_STATE_LOG_RANGE_END;
-    size = 8;
-    ret = pwrite(fd, &end_addr, size, offset);
-
-    /* Ask the device to sync the log into readable space.
-     * This in fact doesn't make much sense, though.
-     */
-    offset = bar_offset + VIRTIO_PCI_COMMON_STATE_LOG_SYNC;
-    size = 4;
-    ret = pwrite(fd, &dummy, size, offset);
-    if (ret != size) {
-        printf("Fail to sync vfio log. ret: %d instead of %d\n", ret, size);
-        return;
-    }
-
-    offset = bar_offset + VIRTIO_PCI_COMMON_LOG_BUF_START;
-    dirty_log = mmap(NULL, LOG_BUF_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-		     fd, offset);
-    if (dirty_log == MAP_FAILED) {
-	    printf("WARNING: can't do mmap for device dirty log\n");
-	    return;
-    }
-
-    log.log = (vhost_log_chunk_t *)dirty_log;
-
-    /* We clear the log after processing it, so no further memset is required */
-    vfio_sync_dirty_bitmap(&dev, section, 0x0, (hwaddr)LOG_BUF_SIZE*8*4096);
-
-    munmap(dirty_log, LOG_BUF_SIZE);
+    log_sync_region(section, start_addr, end_addr, log_base, vdev->mi_log_size);
 }
 
 static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
