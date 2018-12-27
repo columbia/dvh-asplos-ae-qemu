@@ -22,6 +22,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options);
 
 int vhost_net_start(VirtIODevice *dev, NetClientState *ncs, int total_queues);
 void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs, int total_queues);
+
 void vhost_net_cleanup(VHostNetState *net);
 
 uint64_t vhost_net_get_features(VHostNetState *net, uint64_t features);
