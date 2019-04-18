@@ -197,44 +197,44 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, "\n");
         }
 
-        monitor_printf(mon, "total time: %" PRIu64 " milliseconds\n",
+        monitor_printf(mon, "total time:,%" PRIu64 ",milliseconds\n",
                        info->total_time);
         if (info->has_expected_downtime) {
-            monitor_printf(mon, "expected downtime: %" PRIu64 " milliseconds\n",
+            monitor_printf(mon, "expected downtime:,%" PRIu64 ",milliseconds\n",
                            info->expected_downtime);
         }
         if (info->has_downtime) {
-            monitor_printf(mon, "downtime: %" PRIu64 " milliseconds\n",
+            monitor_printf(mon, "downtime:,%" PRIu64 ",milliseconds\n",
                            info->downtime);
         }
         if (info->has_setup_time) {
-            monitor_printf(mon, "setup: %" PRIu64 " milliseconds\n",
+            monitor_printf(mon, "setup:,%" PRIu64 ",milliseconds\n",
                            info->setup_time);
         }
     }
 
     if (info->has_ram) {
-        monitor_printf(mon, "transferred ram: %" PRIu64 " kbytes\n",
+        monitor_printf(mon, "transferred ram,%" PRIu64 ",kbytes\n",
                        info->ram->transferred >> 10);
-        monitor_printf(mon, "throughput: %0.2f mbps\n",
+        monitor_printf(mon, "throughput:,%0.2f,mbps\n",
                        info->ram->mbps);
-        monitor_printf(mon, "remaining ram: %" PRIu64 " kbytes\n",
+        monitor_printf(mon, "remaining ram:,%" PRIu64 ",kbytes\n",
                        info->ram->remaining >> 10);
-        monitor_printf(mon, "total ram: %" PRIu64 " kbytes\n",
+        monitor_printf(mon, "total ram:,%" PRIu64 ",kbytes\n",
                        info->ram->total >> 10);
-        monitor_printf(mon, "duplicate: %" PRIu64 " pages\n",
+        monitor_printf(mon, "duplicate:,%" PRIu64 ",pages\n",
                        info->ram->duplicate);
-        monitor_printf(mon, "skipped: %" PRIu64 " pages\n",
+        monitor_printf(mon, "skipped:,%" PRIu64 ",pages\n",
                        info->ram->skipped);
-        monitor_printf(mon, "normal: %" PRIu64 " pages\n",
+        monitor_printf(mon, "normal:,%" PRIu64 ",pages\n",
                        info->ram->normal);
-        monitor_printf(mon, "normal bytes: %" PRIu64 " kbytes\n",
+        monitor_printf(mon, "normal bytes:,%" PRIu64 ",kbytes\n",
                        info->ram->normal_bytes >> 10);
-        monitor_printf(mon, "dirty sync count: %" PRIu64 "\n",
+        monitor_printf(mon, "dirty sync count:,%" PRIu64 "\n",
                        info->ram->dirty_sync_count);
-        monitor_printf(mon, "page size: %" PRIu64 " kbytes\n",
+        monitor_printf(mon, "page size:,%" PRIu64 ",kbytes\n",
                        info->ram->page_size >> 10);
-        monitor_printf(mon, "multifd bytes: %" PRIu64 " kbytes\n",
+        monitor_printf(mon, "multifd bytes:,%" PRIu64 ",kbytes\n",
                        info->ram->multifd_bytes >> 10);
 
         if (info->ram->dirty_pages_rate) {
