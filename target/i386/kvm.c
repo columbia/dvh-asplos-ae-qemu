@@ -1634,6 +1634,15 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         }
     }
 
+    if (disable_hlt) {
+        ret = kvm_vm_enable_cap(s, KVM_CAP_X86_DISABLE_HLT, 0, 0);
+        if (ret < 0) {
+            error_report("kvm: disabling HLT is not supported  %s",
+                         strerror(-ret));
+        }
+
+    }
+
     return 0;
 }
 

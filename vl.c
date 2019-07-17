@@ -172,6 +172,7 @@ unsigned int max_cpus;
 int smp_cores = 1;
 int smp_threads = 1;
 int acpi_enabled = 1;
+bool disable_hlt = false;
 int no_hpet = 0;
 int fd_bootchk = 1;
 static int no_reboot;
@@ -3987,6 +3988,9 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_nouserconfig:
                 /* Nothing to be parsed here. Especially, do not error out below. */
                 break;
+            case QEMU_OPTION_disable_hlt:
+		disable_hlt = true;
+		break;
             default:
                 if (os_parse_cmd_args(popt->index, optarg)) {
                     error_report("Option not supported in this build");
