@@ -3871,7 +3871,8 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
         route->u.msi.address_lo = dst.address & VTD_MSI_ADDR_LO_MASK;
         route->u.msi.data = dst.data;
 	/* Add pi_desc_addr */
-	route->pi_desc_addr = pi_desc_addr;
+	route->u.pad[4] = (uint32_t) pi_desc_addr;
+	route->u.pad[5] = (uint32_t) (pi_desc_addr >> 32);
     }
 
     return 0;
