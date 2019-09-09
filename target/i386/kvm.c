@@ -1946,6 +1946,7 @@ static int kvm_put_vtscdeadline_msr(X86CPU *cpu)
         return 0;
     }
 
+    printf("V_TSC_DEADLINE restore: 0x%" PRIx64 "\n", env->vtsc_deadline);
     ret = kvm_put_one_msr(cpu, MSR_IA32_V_TSCDEADLINE, env->vtsc_deadline);
     if (ret < 0) {
         return ret;
@@ -2630,6 +2631,7 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_IA32_V_TSCDEADLINE:
             env->vtsc_deadline = msrs[i].data;
+            printf("V_TSC_DEADLINE save: 0x%" PRIx64 "\n", env->vtsc_deadline);
             break;
         case MSR_VM_HSAVE_PA:
             env->vm_hsave = msrs[i].data;
