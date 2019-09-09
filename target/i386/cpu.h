@@ -357,6 +357,7 @@ typedef enum X86Seg {
 #define MSR_IA32_PRED_CMD               0x49
 #define MSR_IA32_ARCH_CAPABILITIES      0x10a
 #define MSR_IA32_TSCDEADLINE            0x6e0
+#define MSR_IA32_V_TSCDEADLINE          0x6e2
 
 #define FEATURE_CONTROL_LOCKED                    (1<<0)
 #define FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX (1<<2)
@@ -1202,6 +1203,7 @@ typedef struct CPUX86State {
     uint64_t tsc;
     uint64_t tsc_adjust;
     uint64_t tsc_deadline;
+    uint64_t vtsc_deadline;
     uint64_t tsc_aux;
 
     uint64_t xcr0;

@@ -76,6 +76,7 @@ static bool has_msr_hsave_pa;
 static bool has_msr_tsc_aux;
 static bool has_msr_tsc_adjust;
 static bool has_msr_tsc_deadline;
+static bool has_msr_vtsc_deadline;
 static bool has_msr_feature_control;
 static bool has_msr_misc_enable;
 static bool has_msr_smbase;
@@ -1445,6 +1446,8 @@ static int kvm_get_supported_msrs(KVMState *s)
                     break;
                 case MSR_IA32_TSCDEADLINE:
                     has_msr_tsc_deadline = true;
+		    /*FIXME: we are relying on tsc cap for now */
+                    has_msr_vtsc_deadline = true;
                     break;
                 case MSR_IA32_SMBASE:
                     has_msr_smbase = true;
@@ -1934,6 +1937,24 @@ static int kvm_put_tscdeadline_msr(X86CPU *cpu)
     return 0;
 }
 
+static int kvm_put_vtscdeadline_msr(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    int ret;
+
+    if (!has_msr_vtsc_deadline) {
+        return 0;
+    }
+
+    ret = kvm_put_one_msr(cpu, MSR_IA32_V_TSCDEADLINE, env->vtsc_deadline);
+    if (ret < 0) {
+        return ret;
+    }
+
+    assert(ret == 1);
+    return 0;
+}
+
 /*
  * Provide a separate write service for the feature control MSR in order to
  * kick the VCPU out of VMXON or even guest mode on reset. This has to be done
@@ -2373,6 +2394,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_tsc_deadline) {
         kvm_msr_entry_add(cpu, MSR_IA32_TSCDEADLINE, 0);
     }
+    if (has_msr_vtsc_deadline) {
+        kvm_msr_entry_add(cpu, MSR_IA32_V_TSCDEADLINE, 0);
+    }
     if (has_msr_misc_enable) {
         kvm_msr_entry_add(cpu, MSR_IA32_MISC_ENABLE, 0);
     }
@@ -2603,6 +2627,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_IA32_TSCDEADLINE:
             env->tsc_deadline = msrs[i].data;
+            break;
+        case MSR_IA32_V_TSCDEADLINE:
+            env->vtsc_deadline = msrs[i].data;
             break;
         case MSR_VM_HSAVE_PA:
             env->vm_hsave = msrs[i].data;
@@ -3098,6 +3125,10 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     }
 
     ret = kvm_put_tscdeadline_msr(x86_cpu);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = kvm_put_vtscdeadline_msr(x86_cpu);
     if (ret < 0) {
         return ret;
     }
