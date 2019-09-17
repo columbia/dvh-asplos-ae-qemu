@@ -401,10 +401,8 @@ out:
     rcu_read_unlock();
 }
 
-static void __vfio_listener_region_add(MemoryListener *listener,
-                                       MemoryRegionSection *section,
-                                       bool read_only_force)
-
+static void vfio_listener_region_add(MemoryListener *listener,
+                                     MemoryRegionSection *section)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
     hwaddr iova, end;
@@ -413,7 +411,6 @@ static void __vfio_listener_region_add(MemoryListener *listener,
     int ret;
     VFIOHostDMAWindow *hostwin;
     bool hostwin_found;
-    bool read_only;
 
     if (vfio_listener_skipped_section(section)) {
         trace_vfio_listener_region_add_skip(
@@ -566,13 +563,8 @@ static void __vfio_listener_region_add(MemoryListener *listener,
         }
     }
 
-    if (read_only_force)
-        read_only = true;
-    else
-        read_only = section->readonly;
-
     ret = vfio_dma_map(container, iova, int128_get64(llsize),
-                       vaddr, read_only);
+                       vaddr, section->readonly);
     if (ret) {
         error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
                      "0x%"HWADDR_PRIx", %p) = %d (%m)",
@@ -603,12 +595,6 @@ fail:
     } else {
         hw_error("vfio: DMA mapping failed, unable to continue");
     }
-}
-
-static void vfio_listener_region_add(MemoryListener *listener,
-                                     MemoryRegionSection *section)
-{
-    __vfio_listener_region_add(listener, section, false);
 }
 
 static void vfio_listener_region_del(MemoryListener *listener,
