@@ -1718,6 +1718,9 @@ static int save_zero_page_to_file(RAMState *rs, QEMUFile *file,
     if (!strcmp(block->idstr, "0000:00:04.0/0000:01:00.0 BAR 4 mmaps[0]"))
         return -1;
 
+    if (!strcmp(block->idstr, "0000:00:04.0/0000:01:00.0 BAR 1 mmaps[0]"))
+        return -1;
+
     if (is_zero_range(p, TARGET_PAGE_SIZE)) {
         len += save_page_header(rs, file, block, offset | RAM_SAVE_FLAG_ZERO);
         qemu_put_byte(file, 0);
