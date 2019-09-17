@@ -3553,7 +3553,7 @@ static int vfio_load(VFIOPCIDevice *vdev, QEMUFile *f, int version_id)
 
 /* A wrapper for use as a VMState .put function */
 static int vfio_device_put(QEMUFile *f, void *opaque, size_t size,
-                           VMStateField *field, QJSON *vmdesc)
+                           const VMStateField *field, QJSON *vmdesc)
 {
     VFIOPCIDevice *vdev = opaque;
     return vfio_save(vdev, f);
@@ -3561,7 +3561,7 @@ static int vfio_device_put(QEMUFile *f, void *opaque, size_t size,
 
 /* A wrapper for use as a VMState .get function */
 static int vfio_device_get(QEMUFile *f, void *opaque, size_t size,
-                           VMStateField *field)
+                           const VMStateField *field)
 {
     VFIOPCIDevice *vdev = opaque;
 
