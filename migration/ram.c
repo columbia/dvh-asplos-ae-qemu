@@ -1715,6 +1715,9 @@ static int save_zero_page_to_file(RAMState *rs, QEMUFile *file,
     uint8_t *p = block->host + offset;
     int len = 0;
 
+    if (!strcmp(block->idstr, "0000:00:04.0/0000:01:00.0 BAR 4 mmaps[0]"))
+        return -1;
+
     if (is_zero_range(p, TARGET_PAGE_SIZE)) {
         len += save_page_header(rs, file, block, offset | RAM_SAVE_FLAG_ZERO);
         qemu_put_byte(file, 0);
@@ -1736,7 +1739,7 @@ static int save_zero_page(RAMState *rs, RAMBlock *block, ram_addr_t offset)
 {
     int len = save_zero_page_to_file(rs, rs->f, block, offset);
 
-    if (!strcmp(block->idstr, "0000:00:04.0/0000:01:00.0 BAR 4 mmaps[0]"))
+    if (len == -1)
         return 1;
 
     if (len) {
