@@ -96,6 +96,7 @@ static bool has_msr_spec_ctrl;
 static bool has_msr_virt_ssbd;
 static bool has_msr_smi_count;
 static bool has_msr_arch_capabs;
+static bool has_msr_vtsc_deadline;
 
 static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
@@ -1620,6 +1621,19 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             error_report("kvm: guest stopping CPU not supported: %s",
                          strerror(-ret));
         }
+    }
+
+    if (enable_dvh_vtimer) {
+        bool dvh_vtimer = kvm_check_extension(s, KVM_CAP_X86_DVH_VTIMER);
+        int ret = kvm_vm_enable_cap(s, KVM_CAP_X86_DVH_VTIMER, 0);
+        if (ret < 0)
+            error_report("kvm: could not enable dvh vtimer capability");
+
+        if (!dvh_vtimer)
+            error_report("kvm: could not enable dvh vtimer capability");
+
+        /* This can be extended to other timer regs e.g. has_virtual_lvtt */
+        has_msr_vtsc_deadline = dvh_vtimer;
     }
 
     return 0;
