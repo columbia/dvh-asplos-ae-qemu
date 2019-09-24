@@ -855,7 +855,6 @@ static int hyperv_init_vcpu(X86CPU *cpu)
 }
 
 static Error *invtsc_mig_blocker;
-static Error *vmx_mig_blocker;
 
 #define KVM_MAX_CPUID_ENTRIES  100
 
@@ -1246,17 +1245,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (c) {
         has_msr_feature_control = !!(c->ecx & CPUID_EXT_VMX) ||
                                   !!(c->ecx & CPUID_EXT_SMX);
-    }
-
-    if ((env->features[FEAT_1_ECX] & CPUID_EXT_VMX) && !vmx_mig_blocker) {
-        error_setg(&vmx_mig_blocker,
-                   "Nested VMX virtualization does not support live migration yet");
-        r = migrate_add_blocker(vmx_mig_blocker, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            error_free(vmx_mig_blocker);
-            return r;
-        }
     }
 
     if (env->mcg_cap & MCG_LMCE_P) {
@@ -1958,6 +1946,16 @@ static int kvm_put_msr_feature_control(X86CPU *cpu)
     return 0;
 }
 
+static int kvm_put_nested_state(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    int ret = 0;
+
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_NESTED_STATE, env->nested_state);
+
+    return ret;
+}
+
 static int kvm_put_msrs(X86CPU *cpu, int level)
 {
     CPUX86State *env = &cpu->env;
@@ -2342,6 +2340,36 @@ static int kvm_get_sregs(X86CPU *cpu)
     /* changes to apic base and cr8/tpr are read back via kvm_arch_post_run */
     x86_update_hflags(env);
 
+    return 0;
+}
+
+static int kvm_get_nested_state(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    struct kvm_nested_state *nested_state = (struct kvm_nested_state *)&env->nested_state;
+    int ret, size;
+
+    printf("%s enter\n", __func__);
+    nested_state->size = sizeof(struct kvm_nested_state);
+    printf("%s trying with size: %d\n", __func__, nested_state->size);
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_NESTED_STATE, nested_state);
+    if (ret < 0 && ret != -E2BIG) {
+    	printf("%s error: %d\n", __func__, ret);
+        return ret;
+    } else if (ret == -E2BIG) {
+        size = nested_state->size;
+    	printf("%s got E2BIG. size: %d\n", __func__, size);
+        nested_state->size = size;
+        printf("%s re-trying with size: %d\n", __func__, nested_state->size);
+        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_NESTED_STATE, nested_state);
+        if (ret < 0) {
+    	    printf("%s got error in the second ioctl: %d\n", __func__, ret);
+            return ret;
+	}
+    }
+
+    printf("%s done. nested_state: %p, size: %d\n", __func__,
+    		nested_state, nested_state->size);
     return 0;
 }
 
@@ -3086,6 +3114,10 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     if (ret < 0) {
         return ret;
     }
+    ret = kvm_put_nested_state(x86_cpu);
+    if (ret < 0) {
+        return ret;
+    }
     ret = kvm_put_vcpu_events(x86_cpu, level);
     if (ret < 0) {
         return ret;
@@ -3149,6 +3181,10 @@ int kvm_arch_get_registers(CPUState *cs)
         goto out;
     }
     ret = kvm_get_msrs(cpu);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = kvm_get_nested_state(cpu);
     if (ret < 0) {
         goto out;
     }

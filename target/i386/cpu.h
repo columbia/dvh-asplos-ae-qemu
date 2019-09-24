@@ -1341,6 +1341,7 @@ typedef struct CPUX86State {
 #if defined(CONFIG_HVF)
     HVFX86EmulatorState *hvf_emul;
 #endif
+    uint8_t nested_state[4096 + 128];
 
     uint64_t mcg_cap;
     uint64_t mcg_ctl;
