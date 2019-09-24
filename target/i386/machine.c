@@ -434,6 +434,25 @@ static const VMStateDescription vmstate_msr_tscdeadline = {
     }
 };
 
+static bool vtscdeadline_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->vtsc_deadline != 0;
+}
+
+static const VMStateDescription vmstate_msr_vtscdeadline = {
+    .name = "cpu/msr_vtscdeadline",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vtscdeadline_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.vtsc_deadline, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool misc_enable_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -1066,6 +1085,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_fpop_ip_dp,
         &vmstate_msr_tsc_adjust,
         &vmstate_msr_tscdeadline,
+        &vmstate_msr_vtscdeadline,
         &vmstate_msr_ia32_misc_enable,
         &vmstate_msr_ia32_feature_control,
         &vmstate_msr_architectural_pmu,
