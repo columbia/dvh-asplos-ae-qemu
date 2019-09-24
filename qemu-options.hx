@@ -3269,6 +3269,14 @@ mlocking qemu and guest memory can be enabled via @option{mlock=on}
 (enabled by default).
 ETEXI
 
+DEF("dvh-vtimer", 0, QEMU_OPTION_dvh_vtimer,
+    "-dvh-vtimer enable DVH virtual timer support\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -dvh-vtimer
+Try to run DVH virtual timer if it is supported in the kernel.
+ETEXI
+
 DEF("overcommit", HAS_ARG, QEMU_OPTION_overcommit,
     "-overcommit [mem-lock=on|off][cpu-pm=on|off]\n"
     "                run qemu with overcommit hints\n"
