@@ -76,7 +76,6 @@ static bool has_msr_hsave_pa;
 static bool has_msr_tsc_aux;
 static bool has_msr_tsc_adjust;
 static bool has_msr_tsc_deadline;
-static bool has_msr_vtsc_deadline;
 static bool has_msr_feature_control;
 static bool has_msr_misc_enable;
 static bool has_msr_smbase;
@@ -1435,8 +1434,6 @@ static int kvm_get_supported_msrs(KVMState *s)
                     break;
                 case MSR_IA32_TSCDEADLINE:
                     has_msr_tsc_deadline = true;
-		    /*FIXME: we are relying on tsc cap for now */
-                    has_msr_vtsc_deadline = true;
                     break;
                 case MSR_IA32_SMBASE:
                     has_msr_smbase = true;
