@@ -146,6 +146,9 @@ int mem_prealloc = 0; /* force preallocation of physical target memory */
 bool enable_mlock = false;
 bool enable_cpu_pm = false;
 bool enable_dvh_vtimer = false;
+bool enable_dvh_vipi = false;
+bool enable_dvh_seg = false;
+bool enable_dvh = false;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int autostart;
@@ -3962,6 +3965,17 @@ int main(int argc, char **argv, char **envp)
                 enable_mlock = enable_mlock ||
                     qemu_opt_get_bool(opts, "mem-lock", false);
                 enable_cpu_pm = qemu_opt_get_bool(opts, "cpu-pm", false);
+                break;
+            case QEMU_OPTION_dvh:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("overcommit"),
+                                               optarg, false);
+                if (!opts) {
+                    exit(1);
+                }
+                enable_dvh_vtimer = qemu_opt_get_bool(opts, "vtimer", false);
+                enable_dvh_vipi = qemu_opt_get_bool(opts, "vipi", false);
+                enable_dvh_seg = qemu_opt_get_bool(opts, "seg", false);
+                enable_dvh = enable_dvh_vtimer | enable_dvh_vipi | enable_dvh_seg;
                 break;
             case QEMU_OPTION_dvh_vtimer:
                 enable_dvh_vtimer = true;

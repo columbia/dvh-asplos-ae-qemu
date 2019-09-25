@@ -3287,6 +3287,17 @@ STEXI
 Try to run DVH virtual timer if it is supported in the kernel.
 ETEXI
 
+DEF("dvh", HAS_ARG, QEMU_OPTION_dvh,
+    "-dvh [vtimer=on|off][vipi=on|off][seg=[on|off]"
+    "enable DVH support for VM (default: off)\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -dvh vtimer=on|off
+@item -dvh vipi=on|off
+@item -dvh seg=on|off
+Run qemu with DVH support for VM.
+ETEXI
+
 DEF("overcommit", HAS_ARG, QEMU_OPTION_overcommit,
     "-overcommit [mem-lock=on|off][cpu-pm=on|off]\n"
     "                run qemu with overcommit hints\n"
