@@ -1739,16 +1739,6 @@ it if your guest OS complains about ACPI problems (PC target machine
 only).
 ETEXI
 
-DEF("disable-hlt", 0, QEMU_OPTION_disable_hlt,
-           "-disable-hlt        disable HLT trap\n", QEMU_ARCH_I386)
-STEXI
-@item -disable-hlt
-@findex -disable-hlt
-
-Disable ACPI (Advanced Configuration and Power Interface) support. Use
-it if your guest OS complains about ACPI problems (PC target machine
-only).
-ETEXI
 DEF("no-hpet", 0, QEMU_OPTION_no_hpet,
     "-no-hpet        disable HPET\n", QEMU_ARCH_I386)
 STEXI
@@ -3279,12 +3269,15 @@ mlocking qemu and guest memory can be enabled via @option{mlock=on}
 (enabled by default).
 ETEXI
 
-DEF("dvh-vtimer", 0, QEMU_OPTION_dvh_vtimer,
-    "-dvh-vtimer enable DVH virtual timer support\n",
+DEF("dvh", HAS_ARG, QEMU_OPTION_dvh,
+    "-dvh [vtimer=on|off][vipi=on|off][seg=[on|off]"
+    "enable DVH support for VM (default: off)\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -dvh-vtimer
-Try to run DVH virtual timer if it is supported in the kernel.
+@item -dvh vtimer=on|off
+@item -dvh vipi=on|off
+@item -dvh seg=on|off
+Run qemu with DVH support for VM.
 ETEXI
 
 DEF("overcommit", HAS_ARG, QEMU_OPTION_overcommit,

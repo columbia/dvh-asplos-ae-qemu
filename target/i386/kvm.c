@@ -1623,25 +1623,27 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         }
     }
 
-    if (enable_dvh_vtimer) {
-        bool dvh_vtimer = kvm_check_extension(s, KVM_CAP_X86_DVH_VTIMER);
-        int ret = kvm_vm_enable_cap(s, KVM_CAP_X86_DVH_VTIMER, 0);
-        if (ret < 0)
-            error_report("kvm: could not enable dvh vtimer capability");
+    if (enable_dvh) {
+        int avail_dvh_features = kvm_check_extension(s, KVM_CAP_X86_DVH);
+        int dvh_features = 0;
+        int ret;
 
-        if (!dvh_vtimer)
-            error_report("kvm: could not enable dvh vtimer capability");
+        if (enable_dvh_vtimer && (avail_dvh_features & KVM_X86_DVH_VTIMER))
+            dvh_features |= KVM_X86_DVH_VTIMER;
+
+        if (enable_dvh_vipi && (avail_dvh_features & KVM_X86_DVH_VIPI))
+            dvh_features |= KVM_X86_DVH_VIPI;
+
+        if (enable_dvh_seg && (avail_dvh_features & KVM_X86_DVH_SEG))
+            dvh_features |= KVM_X86_DVH_SEG;
+
+        ret = kvm_vm_enable_cap(s, KVM_CAP_X86_DVH, 0, dvh_features);
+        if (ret < 0)
+            error_report("kvm: could not enable dvh features: %d", dvh_features);
 
         /* This can be extended to other timer regs e.g. has_virtual_lvtt */
-        has_msr_vtsc_deadline = dvh_vtimer;
-    }
-
-    if (disable_hlt) {
-        ret = kvm_vm_enable_cap(s, KVM_CAP_X86_DISABLE_HLT, 0, 0);
-        if (ret < 0) {
-            error_report("kvm: disabling HLT is not supported  %s",
-                         strerror(-ret));
-        }
+        if (dvh_features & KVM_X86_DVH_VTIMER)
+            has_msr_vtsc_deadline = true;
     }
 
     return 0;

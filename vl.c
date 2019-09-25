@@ -146,6 +146,9 @@ int mem_prealloc = 0; /* force preallocation of physical target memory */
 bool enable_mlock = false;
 bool enable_cpu_pm = false;
 bool enable_dvh_vtimer = false;
+bool enable_dvh_vipi = false;
+bool enable_dvh_seg = false;
+bool enable_dvh = false;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int autostart;
@@ -173,7 +176,6 @@ unsigned int max_cpus;
 int smp_cores = 1;
 int smp_threads = 1;
 int acpi_enabled = 1;
-bool disable_hlt = false;
 int no_hpet = 0;
 int fd_bootchk = 1;
 static int no_reboot;
@@ -3963,8 +3965,16 @@ int main(int argc, char **argv, char **envp)
                     qemu_opt_get_bool(opts, "mem-lock", false);
                 enable_cpu_pm = qemu_opt_get_bool(opts, "cpu-pm", false);
                 break;
-            case QEMU_OPTION_dvh_vtimer:
-                enable_dvh_vtimer = true;
+            case QEMU_OPTION_dvh:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("overcommit"),
+                                               optarg, false);
+                if (!opts) {
+                    exit(1);
+                }
+                enable_dvh_vtimer = qemu_opt_get_bool(opts, "vtimer", false);
+                enable_dvh_vipi = qemu_opt_get_bool(opts, "vipi", false);
+                enable_dvh_seg = qemu_opt_get_bool(opts, "seg", false);
+                enable_dvh = enable_dvh_vtimer | enable_dvh_vipi | enable_dvh_seg;
                 break;
             case QEMU_OPTION_msg:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("msg"), optarg,
@@ -3992,9 +4002,6 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_nouserconfig:
                 /* Nothing to be parsed here. Especially, do not error out below. */
                 break;
-            case QEMU_OPTION_disable_hlt:
-		disable_hlt = true;
-		break;
             default:
                 if (os_parse_cmd_args(popt->index, optarg)) {
                     error_report("Option not supported in this build");

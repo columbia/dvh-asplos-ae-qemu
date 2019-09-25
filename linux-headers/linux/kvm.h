@@ -689,6 +689,14 @@ struct kvm_ioeventfd {
                                               KVM_X86_DISABLE_EXITS_HLT | \
                                               KVM_X86_DISABLE_EXITS_PAUSE)
 
+#define KVM_X86_DVH_VTIMER		(1 << 0)
+#define KVM_X86_DVH_VIPI		(1 << 1)
+#define KVM_X86_DVH_SEG			(1 << 2)
+//#define KVM_X86_DVH_VIDLE		(1 << 3)
+#define KVM_X86_DVH_VALID		(KVM_X86_DVH_VTIMER | \
+					 KVM_X86_DVH_VIPI| \
+					 KVM_X86_DVH_SEG)
+
 /* for KVM_ENABLE_CAP */
 struct kvm_enable_cap {
 	/* in */
@@ -965,9 +973,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_COALESCED_PIO 162
 #define KVM_CAP_HYPERV_ENLIGHTENED_VMCS 163
 #define KVM_CAP_EXCEPTION_PAYLOAD 164
-#define KVM_CAP_X86_DVH_VTIMER 165
-
-#define KVM_CAP_X86_DISABLE_HLT 165
+#define KVM_CAP_X86_DVH 166
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
