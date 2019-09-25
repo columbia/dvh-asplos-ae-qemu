@@ -3977,9 +3977,6 @@ int main(int argc, char **argv, char **envp)
                 enable_dvh_seg = qemu_opt_get_bool(opts, "seg", false);
                 enable_dvh = enable_dvh_vtimer | enable_dvh_vipi | enable_dvh_seg;
                 break;
-            case QEMU_OPTION_dvh_vtimer:
-                enable_dvh_vtimer = true;
-                break;
             case QEMU_OPTION_msg:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("msg"), optarg,
                                                false);
