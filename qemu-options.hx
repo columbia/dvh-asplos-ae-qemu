@@ -1739,6 +1739,16 @@ it if your guest OS complains about ACPI problems (PC target machine
 only).
 ETEXI
 
+DEF("disable-hlt", 0, QEMU_OPTION_disable_hlt,
+           "-disable-hlt        disable HLT trap\n", QEMU_ARCH_I386)
+STEXI
+@item -disable-hlt
+@findex -disable-hlt
+
+Disable ACPI (Advanced Configuration and Power Interface) support. Use
+it if your guest OS complains about ACPI problems (PC target machine
+only).
+ETEXI
 DEF("no-hpet", 0, QEMU_OPTION_no_hpet,
     "-no-hpet        disable HPET\n", QEMU_ARCH_I386)
 STEXI

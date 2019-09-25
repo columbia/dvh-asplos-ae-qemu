@@ -65,7 +65,10 @@ typedef struct VTDAddressSpace VTDAddressSpace;
 typedef struct VTDIOTLBEntry VTDIOTLBEntry;
 typedef struct VTDBus VTDBus;
 typedef union VTD_IR_TableEntry VTD_IR_TableEntry;
+typedef union VTD_IR_TableEntry_PI VTD_IR_TableEntry_PI;
+typedef struct VTD_PI_Descriptor VTD_PI_Descriptor;
 typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
+typedef struct VTD_irte_pi_info VTD_irte_pi_info;
 
 /* Context-Entry */
 struct VTDContextEntry {
@@ -127,47 +130,115 @@ enum {
     VTD_SVT_MAX,
 };
 
+/* Interrupt Remapping Table Entry for Remapped Interrupts */
+typedef struct QEMU_PACKED {
+#ifdef HOST_WORDS_BIGENDIAN
+    uint32_t __reserved_1:8;     /* Reserved 1 */
+    uint32_t vector:8;           /* Interrupt Vector */
+    uint32_t irte_mode:1;        /* IRTE Mode */
+    uint32_t __reserved_0:3;     /* Reserved 0 */
+    uint32_t __avail:4;          /* Available spaces for software */
+    uint32_t delivery_mode:3;    /* Delivery Mode */
+    uint32_t trigger_mode:1;     /* Trigger Mode */
+    uint32_t redir_hint:1;       /* Redirection Hint */
+    uint32_t dest_mode:1;        /* Destination Mode */
+    uint32_t fault_disable:1;    /* Fault Processing Disable */
+    uint32_t present:1;          /* Whether entry present/available */
+#else
+    uint32_t present:1;          /* Whether entry present/available */
+    uint32_t fault_disable:1;    /* Fault Processing Disable */
+    uint32_t dest_mode:1;        /* Destination Mode */
+    uint32_t redir_hint:1;       /* Redirection Hint */
+    uint32_t trigger_mode:1;     /* Trigger Mode */
+    uint32_t delivery_mode:3;    /* Delivery Mode */
+    uint32_t __avail:4;          /* Available spaces for software */
+    uint32_t __reserved_0:3;     /* Reserved 0 */
+    uint32_t irte_mode:1;        /* IRTE Mode */
+    uint32_t vector:8;           /* Interrupt Vector */
+    uint32_t __reserved_1:8;     /* Reserved 1 */
+#endif
+    uint32_t dest_id;            /* Destination ID */
+    uint16_t source_id;          /* Source-ID */
+#ifdef HOST_WORDS_BIGENDIAN
+    uint64_t __reserved_2:44;    /* Reserved 2 */
+    uint64_t sid_vtype:2;        /* Source-ID Validation Type */
+    uint64_t sid_q:2;            /* Source-ID Qualifier */
+#else
+    uint64_t sid_q:2;            /* Source-ID Qualifier */
+    uint64_t sid_vtype:2;        /* Source-ID Validation Type */
+    uint64_t __reserved_2:44;    /* Reserved 2 */
+#endif
+} irte;
+
+/* Interrupt Remapping Table Entry for Posted Interrupts Definition */
+typedef struct QEMU_PACKED {
+#ifdef HOST_WORDS_BIGENDIAN
+    uint64_t pd_addr_lo:26;      /* Posted Descriptor Address Low */
+    uint64_t __reserved_2:14;     /* Reserved 2 */
+    uint64_t vector:8;           /* Interrupt Vector */
+    uint64_t irte_mode:1;        /* IRTE Mode */
+    uint64_t urgent:1;           /* Urgent */
+    uint64_t __reserved_1:2;     /* Reserved 1 */
+    uint64_t __avail:4;          /* Available spaces for software */
+    uint64_t __reserved_0:6;     /* Reserved 0 */
+    uint64_t fault_disable:1;    /* Fault Processing Disable */
+    uint64_t present:1;          /* Whether entry present/available */
+#else
+    uint64_t present:1;          /* Whether entry present/available */
+    uint64_t fault_disable:1;    /* Fault Processing Disable */
+    uint64_t __reserved_0:6;     /* Reserved 0 */
+    uint64_t __avail:4;          /* Available spaces for software */
+    uint64_t __reserved_1:2;     /* Reserved 1 */
+    uint64_t urgent:1;           /* Urgent */
+    uint64_t irte_mode:1;        /* IRTE Mode */
+    uint64_t vector:8;           /* Interrupt Vector */
+    uint64_t __reserved_2:14;     /* Reserved 2 */
+    uint64_t pd_addr_lo:26;      /* Posted Descriptor Address Low */
+#endif
+    uint16_t source_id;          /* Source-ID */
+#ifdef HOST_WORDS_BIGENDIAN
+    uint64_t pd_addr_hi:32;      /* Posted Descriptor Address High */
+    uint64_t __reserved_3:12;    /* Reserved 3 */
+    uint64_t sid_vtype:2;        /* Source-ID Validation Type */
+    uint64_t sid_q:2;            /* Source-ID Qualifier */
+#else
+    uint64_t sid_q:2;            /* Source-ID Qualifier */
+    uint64_t sid_vtype:2;        /* Source-ID Validation Type */
+    uint64_t __reserved_3:12;    /* Reserved 3 */
+    uint64_t pd_addr_hi:32;      /* Posted Descriptor Address High */
+#endif
+} QEMU_PACKED irte_pi;
+
 /* Interrupt Remapping Table Entry Definition */
 union VTD_IR_TableEntry {
-    struct {
-#ifdef HOST_WORDS_BIGENDIAN
-        uint32_t __reserved_1:8;     /* Reserved 1 */
-        uint32_t vector:8;           /* Interrupt Vector */
-        uint32_t irte_mode:1;        /* IRTE Mode */
-        uint32_t __reserved_0:3;     /* Reserved 0 */
-        uint32_t __avail:4;          /* Available spaces for software */
-        uint32_t delivery_mode:3;    /* Delivery Mode */
-        uint32_t trigger_mode:1;     /* Trigger Mode */
-        uint32_t redir_hint:1;       /* Redirection Hint */
-        uint32_t dest_mode:1;        /* Destination Mode */
-        uint32_t fault_disable:1;    /* Fault Processing Disable */
-        uint32_t present:1;          /* Whether entry present/available */
-#else
-        uint32_t present:1;          /* Whether entry present/available */
-        uint32_t fault_disable:1;    /* Fault Processing Disable */
-        uint32_t dest_mode:1;        /* Destination Mode */
-        uint32_t redir_hint:1;       /* Redirection Hint */
-        uint32_t trigger_mode:1;     /* Trigger Mode */
-        uint32_t delivery_mode:3;    /* Delivery Mode */
-        uint32_t __avail:4;          /* Available spaces for software */
-        uint32_t __reserved_0:3;     /* Reserved 0 */
-        uint32_t irte_mode:1;        /* IRTE Mode */
-        uint32_t vector:8;           /* Interrupt Vector */
-        uint32_t __reserved_1:8;     /* Reserved 1 */
-#endif
-        uint32_t dest_id;            /* Destination ID */
-        uint16_t source_id;          /* Source-ID */
-#ifdef HOST_WORDS_BIGENDIAN
-        uint64_t __reserved_2:44;    /* Reserved 2 */
-        uint64_t sid_vtype:2;        /* Source-ID Validation Type */
-        uint64_t sid_q:2;            /* Source-ID Qualifier */
-#else
-        uint64_t sid_q:2;            /* Source-ID Qualifier */
-        uint64_t sid_vtype:2;        /* Source-ID Validation Type */
-        uint64_t __reserved_2:44;    /* Reserved 2 */
-#endif
-    } QEMU_PACKED irte;
+    irte irte;
+    irte_pi irte_pi;
     uint64_t data[2];
+};
+
+
+/* Posted Interrupt Descriptor */
+/* TODO: add endianness */
+struct VTD_PI_Descriptor {
+#define PIRR_SIZE 8                  /* Posted Interrupt Requests (256 bits) */
+    uint32_t pir[PIRR_SIZE];
+
+    union {
+        struct {
+            uint16_t on:1;               /* Outstanding Notification */
+            uint16_t sn:1;               /* Suppress Notification */
+            uint16_t __reserved_1:14;    /* Reserved 1 */
+            uint8_t nv;                  /* Notification vector */
+            uint8_t __reserved_2;        /* Reserved 2 */
+            uint32_t ndst;               /* Notification Destination - Physical APIC-ID of the logical CPU) */
+        } QEMU_PACKED control;
+
+        uint32_t data;
+    };
+
+#define PID_RESERVED 6
+    uint32_t rsvd[6];
+
 };
 
 #define VTD_IR_INT_FORMAT_COMPAT     (0) /* Compatible Interrupt */
@@ -193,6 +264,13 @@ union VTD_IR_MSIAddress {
 #endif
     } QEMU_PACKED addr;
     uint32_t data;
+};
+
+/* Keep PI related info in IRTE */
+struct VTD_irte_pi_info {
+    uint64_t pid_addr;	/* PI descriptor addres */
+    uint8_t urgent; /* Urgent bit */
+    uint8_t vector;
 };
 
 /* When IR is enabled, all MSI/MSI-X data bits should be zero */

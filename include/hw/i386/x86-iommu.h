@@ -51,7 +51,7 @@ struct X86IOMMUClass {
     DeviceRealize realize;
     /* MSI-based interrupt remapping */
     int (*int_remap)(X86IOMMUState *iommu, MSIMessage *src,
-                     MSIMessage *dst, uint16_t sid);
+                     MSIMessage *dst, uint16_t sid, uint64_t *pi_desc_addr);
 };
 
 /**
@@ -77,6 +77,7 @@ struct X86IOMMUState {
     bool intr_supported;        /* Whether vIOMMU supports IR */
     bool dt_supported;          /* Whether vIOMMU supports DT */
     bool pt_supported;          /* Whether vIOMMU supports pass-through */
+    bool intpost_supported;        /* Whether vIOMMU supports PI */
     IommuType type;             /* IOMMU type - AMD/Intel     */
     QLIST_HEAD(, IEC_Notifier) iec_notifiers; /* IEC notify list */
 };

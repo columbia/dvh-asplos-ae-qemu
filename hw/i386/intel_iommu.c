@@ -2654,6 +2654,8 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
 
     trace_vtd_ir_irte_get(index, le64_to_cpu(entry->data[1]),
                           le64_to_cpu(entry->data[0]));
+    if (entry->irte.irte_mode)
+        trace_vtd_ir_irte_pi_get(index, entry->irte_pi.vector);
 
     if (!entry->irte.present) {
         error_report_once("%s: detected non-present IRTE "
@@ -2663,13 +2665,24 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
         return -VTD_FR_IR_ENTRY_P;
     }
 
-    if (entry->irte.__reserved_0 || entry->irte.__reserved_1 ||
-        entry->irte.__reserved_2) {
-        error_report_once("%s: detected non-zero reserved IRTE "
-                          "(index=%u, high=0x%" PRIx64 ", low=0x%" PRIx64 ")",
-                          __func__, index, le64_to_cpu(entry->data[1]),
-                          le64_to_cpu(entry->data[0]));
-        return -VTD_FR_IR_IRTE_RSVD;
+    if (!entry->irte.irte_mode) {
+        if (entry->irte.__reserved_0 || entry->irte.__reserved_1 ||
+            entry->irte.__reserved_2) {
+            error_report_once("%s: detected non-zero reserved IRTE "
+                              "(index=%u, high=0x%" PRIx64 ", low=0x%" PRIx64 ")",
+                              __func__, index, le64_to_cpu(entry->data[1]),
+                              le64_to_cpu(entry->data[0]));
+            return -VTD_FR_IR_IRTE_RSVD;
+        }
+    } else {
+        if (entry->irte_pi.__reserved_0 || entry->irte_pi.__reserved_1 ||
+            entry->irte_pi.__reserved_2 || entry->irte_pi.__reserved_3) {
+            error_report_once("%s: detected non-zero reserved IRTE for PI "
+                              "(index=%u, high=0x%" PRIx64 ", low=0x%" PRIx64 ")",
+                              __func__, index, le64_to_cpu(entry->data[1]),
+                              le64_to_cpu(entry->data[0]));
+            return -VTD_FR_IR_IRTE_RSVD;
+        }
     }
 
     if (sid != X86_IOMMU_SID_INVALID) {
@@ -2714,42 +2727,150 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
     return 0;
 }
 
+/* Interrupt-Posting Hardware Operation. See VT-d spec 5.2.3 */
+static int vtd_pi_setup_descriptor(VTD_irte_pi_info pi_info, uint32_t *msi_data, bool *need_notify)
+{
+    VTD_PI_Descriptor pi_desc;
+    uint64_t pda;   /* Posted Interrupt Descriptor address */
+    int ret = 0;
+    int pir_idx, pir_pos;
+    int bits_per_pir_array = 0;
+    int vector = 0;
+
+    pda = pi_info.pid_addr;
+
+    vector = pi_info.vector;
+    /* Let's do atomic read-modify-write */
+    /* TODO: we probably need a lock or something */
+    if (dma_memory_read(&address_space_memory, pda, &pi_desc,
+                        sizeof(pi_desc))) {
+        error_report_once("Memory read failed for Posted Interrupt Descriptor.");
+        /* TODO: release a lock here */
+        /* TODO: change this error code */
+        return -VTD_FR_IR_ROOT_INVAL;
+    }
+
+    /* TODO: Check reserved bits for PID */
+
+    /* Set Posted Interrupt Requests (PIR) */
+    bits_per_pir_array = sizeof(pi_desc.pir[0]) * 8;
+    pir_idx = vector / bits_per_pir_array;
+    pir_pos = vector % bits_per_pir_array;
+    pi_desc.pir[pir_idx] |= 1UL << pir_pos;
+
+    if (!pi_desc.control.on && (pi_info.urgent || !pi_desc.control.sn)) {
+	if (need_notify)
+            *need_notify = 1;
+        pi_desc.control.on = 1;
+    } else {
+        /* Let's find out why we don't have to notify */
+	/*
+        if (pi_desc.control.on == 1)
+            trace_vtd_err("ON is already 1");
+        if (pi_desc.control.sn == 1)
+            trace_vtd_err("SN is already 1");
+	    */
+    }
+
+    /* write back */
+    if (dma_memory_write(&address_space_memory, pda, &pi_desc,
+                             sizeof(pi_desc))) {
+        error_report_once("Memory write failed for Posted Interrupt Descriptor.");
+        /* TODO: release a lock here */
+        return -VTD_FR_IR_ROOT_INVAL;
+    }
+    /* TODO: release a lock here */
+
+    /* We are about to send PI from userspace. Change the irq number */
+    *msi_data &= ~0xff;
+    *msi_data |= (uint8_t)pi_desc.control.nv;
+    return ret;
+}
+
+/* Interrupt-Posting Hardware Operation. See VT-d spec 5.2.3 */
+static int vtd_pi_setup_irq(X86IOMMUIrq *irq, VTD_IR_TableEntry irte, int index,
+			    VTD_irte_pi_info *pi_info)
+{
+    VTD_PI_Descriptor pi_desc;
+    uint64_t pda;   /* Posted Interrupt Descriptor address */
+    uint32_t pda_l, pda_h;
+    int ret = 0;
+
+#define PDA_LOW_BIT    26
+    pda_l = le64_to_cpu(irte.irte_pi.pd_addr_lo) << (32 - PDA_LOW_BIT);
+    pda_h = le64_to_cpu(irte.irte_pi.pd_addr_hi);
+    pda = ((uint64_t) pda_h << 32) | pda_l;
+
+    if (pi_info){
+	    pi_info->pid_addr = pda;
+	    pi_info->urgent = irte.irte_pi.urgent;
+	    pi_info->vector = irte.irte_pi.vector;
+    }
+
+    trace_vtd_pi_setup_irq(index, pda);
+
+    if (dma_memory_read(&address_space_memory, pda, &pi_desc,
+                        sizeof(pi_desc))) {
+        error_report_once("Memory read failed for Posted Interrupt Descriptor.");
+        /* TODO: change this error code */
+        return -VTD_FR_IR_ROOT_INVAL;
+    }
+
+    irq->dest = pi_desc.control.ndst;
+    irq->vector = irte.irte_pi.vector;
+    irq->delivery_mode = 0; /* Fixed (000b) */
+    irq->redir_hint = 0;    /* Clear (0b) */
+    irq->trigger_mode = 0;  /* Edge (0b) */
+
+    return ret;
+}
+
 /* Fetch IRQ information of specific IR index */
 static int vtd_remap_irq_get(IntelIOMMUState *iommu, uint16_t index,
-                             X86IOMMUIrq *irq, uint16_t sid)
+                             X86IOMMUIrq *irq, uint16_t sid,
+			     VTD_irte_pi_info *pi_info)
 {
     VTD_IR_TableEntry irte = {};
     int ret = 0;
+    bool pi;
 
     ret = vtd_irte_get(iommu, index, &irte, sid);
     if (ret) {
         return ret;
     }
 
-    irq->trigger_mode = irte.irte.trigger_mode;
-    irq->vector = irte.irte.vector;
-    irq->delivery_mode = irte.irte.delivery_mode;
-    irq->dest = le32_to_cpu(irte.irte.dest_id);
-    if (!iommu->intr_eime) {
+    pi = irte.irte.irte_mode;
+    /* Interrupt remapping */
+    if (!pi)
+    {
+        irq->trigger_mode = irte.irte.trigger_mode;
+        irq->vector = irte.irte.vector;
+        irq->delivery_mode = irte.irte.delivery_mode;
+        irq->dest = le32_to_cpu(irte.irte.dest_id);
+        if (!iommu->intr_eime) {
 #define  VTD_IR_APIC_DEST_MASK         (0xff00ULL)
 #define  VTD_IR_APIC_DEST_SHIFT        (8)
-        irq->dest = (irq->dest & VTD_IR_APIC_DEST_MASK) >>
-            VTD_IR_APIC_DEST_SHIFT;
+            irq->dest = (irq->dest & VTD_IR_APIC_DEST_MASK) >>
+                VTD_IR_APIC_DEST_SHIFT;
+        }
+        irq->dest_mode = irte.irte.dest_mode;
+        irq->redir_hint = irte.irte.redir_hint;
+    } else {
+        ret = vtd_pi_setup_irq(irq, irte, index, pi_info);
     }
-    irq->dest_mode = irte.irte.dest_mode;
-    irq->redir_hint = irte.irte.redir_hint;
 
-    trace_vtd_ir_remap(index, irq->trigger_mode, irq->vector,
+    trace_vtd_ir_remap(index, pi, irq->trigger_mode, irq->vector,
                        irq->delivery_mode, irq->dest, irq->dest_mode);
 
-    return 0;
+    return ret;
 }
 
 /* Interrupt remapping for MSI/MSI-X entry */
 static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
                                    MSIMessage *origin,
                                    MSIMessage *translated,
-                                   uint16_t sid)
+                                   uint16_t sid,
+				   VTD_irte_pi_info *pi_info)
 {
     int ret = 0;
     VTD_IR_MSIAddress addr;
@@ -2794,10 +2915,9 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
         index += origin->data & VTD_IR_MSI_DATA_SUBHANDLE;
     }
 
-    ret = vtd_remap_irq_get(iommu, index, &irq, sid);
-    if (ret) {
+    ret = vtd_remap_irq_get(iommu, index, &irq, sid, pi_info);
+    if (ret)
         return ret;
-    }
 
     if (addr.addr.sub_valid) {
         trace_vtd_ir_remap_type("MSI");
@@ -2842,11 +2962,19 @@ out:
     return 0;
 }
 
+/* Just ignore pi_desc_addr for now */
 static int vtd_int_remap(X86IOMMUState *iommu, MSIMessage *src,
-                         MSIMessage *dst, uint16_t sid)
+                         MSIMessage *dst, uint16_t sid, uint64_t *pi_desc_addr)
 {
-    return vtd_interrupt_remap_msi(INTEL_IOMMU_DEVICE(iommu),
-                                   src, dst, sid);
+    VTD_irte_pi_info pi_info = {};
+    int ret = 0;
+
+    ret = vtd_interrupt_remap_msi(INTEL_IOMMU_DEVICE(iommu),
+                                   src, dst, sid, &pi_info);
+    *pi_desc_addr = pi_info.pid_addr;
+
+    return ret;
+
 }
 
 static MemTxResult vtd_mem_ir_read(void *opaque, hwaddr addr,
@@ -2863,6 +2991,8 @@ static MemTxResult vtd_mem_ir_write(void *opaque, hwaddr addr,
     int ret = 0;
     MSIMessage from = {}, to = {};
     uint16_t sid = X86_IOMMU_SID_INVALID;
+    bool pi,need_notify = false;
+    VTD_irte_pi_info pi_info = {};
 
     from.address = (uint64_t) addr + VTD_INTERRUPT_ADDR_FIRST;
     from.data = (uint32_t) value;
@@ -2872,14 +3002,23 @@ static MemTxResult vtd_mem_ir_write(void *opaque, hwaddr addr,
         sid = attrs.requester_id;
     }
 
-    ret = vtd_interrupt_remap_msi(opaque, &from, &to, sid);
+    ret = vtd_interrupt_remap_msi(opaque, &from, &to, sid, &pi_info);
     if (ret) {
         /* TODO: report error */
         /* Drop this interrupt */
         return MEMTX_ERROR;
     }
 
-    apic_get_class()->send_msi(&to);
+
+    pi = pi_info.pid_addr;
+    if (pi)
+	ret = vtd_pi_setup_descriptor(pi_info, &to.data, &need_notify);
+
+    if (ret)
+        return MEMTX_ERROR;
+
+    if (!pi || (pi && need_notify))
+        apic_get_class()->send_msi(&to);
 
     return MEMTX_OK;
 }
@@ -3143,6 +3282,14 @@ static void vtd_init(IntelIOMMUState *s)
             s->ecap |= VTD_ECAP_EIM;
         }
         assert(s->intr_eim != ON_OFF_AUTO_AUTO);
+
+        /*
+         * Hardware implementations reporting PI as Set must also report
+         * Interrupt Remapping support field as Set. See VT-d 10.4.2.
+         */
+        if (x86_iommu->intpost_supported) {
+            s->cap |= VTD_CAP_PI;
+        }
     }
 
     if (x86_iommu->dt_supported) {
