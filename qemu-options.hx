@@ -3277,6 +3277,7 @@ STEXI
 @item -dvh vtimer=on|off
 @item -dvh vipi=on|off
 @item -dvh seg=on|off
+@findex -dvh
 Run qemu with DVH support for VM.
 ETEXI
 

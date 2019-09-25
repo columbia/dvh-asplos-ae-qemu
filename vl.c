@@ -421,6 +421,26 @@ static QemuOptsList qemu_overcommit_opts = {
     },
 };
 
+static QemuOptsList qemu_dvh_opts = {
+    .name = "dvh",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_dvh_opts.head),
+    .desc = {
+        {
+            .name = "vtimer",
+            .type = QEMU_OPT_BOOL,
+        },
+        {
+            .name = "vipi",
+            .type = QEMU_OPT_BOOL,
+        },
+        {
+            .name = "seg",
+            .type = QEMU_OPT_BOOL,
+        },
+        { /* end of list */ }
+    },
+};
+
 static QemuOptsList qemu_msg_opts = {
     .name = "msg",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_msg_opts.head),
@@ -3057,6 +3077,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_tpmdev_opts);
     qemu_add_opts(&qemu_realtime_opts);
     qemu_add_opts(&qemu_overcommit_opts);
+    qemu_add_opts(&qemu_dvh_opts);
     qemu_add_opts(&qemu_msg_opts);
     qemu_add_opts(&qemu_name_opts);
     qemu_add_opts(&qemu_numa_opts);
@@ -3966,7 +3987,7 @@ int main(int argc, char **argv, char **envp)
                 enable_cpu_pm = qemu_opt_get_bool(opts, "cpu-pm", false);
                 break;
             case QEMU_OPTION_dvh:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("overcommit"),
+                opts = qemu_opts_parse_noisily(qemu_find_opts("dvh"),
                                                optarg, false);
                 if (!opts) {
                     exit(1);
