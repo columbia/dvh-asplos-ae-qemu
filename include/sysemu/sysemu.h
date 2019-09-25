@@ -137,7 +137,6 @@ extern bool enable_dvh_vtimer;
 extern bool enable_dvh_vipi;
 extern bool enable_dvh_seg;
 extern bool enable_dvh;
-extern bool disable_hlt;
 extern uint8_t qemu_extra_params_fw[2];
 extern QEMUClockType rtc_clock;
 extern const char *mem_path;
