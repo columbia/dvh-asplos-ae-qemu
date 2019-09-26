@@ -1231,8 +1231,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
     }
 
     if(virq == 2 && !strcmp(dev->name, "vfio-pci")) {
-
-        printf("We change virq from %d to %d\n", virq, 24 +vector); 
+        //printf("We change virq from %d to %d\n", virq, 24 +vector); 
         virq = 24 + vector;
     }
 

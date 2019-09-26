@@ -2205,9 +2205,9 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
 
         vdev->mi_offset = bar_offset + offset_in_bar;
 
-        printf("bar offset: 0x%lx\n", bar_offset);
-        printf("bar is %d\n", bar);
-        printf("offset in bar is 0x%lx\n", offset_in_bar);
+        //printf("bar offset: 0x%lx\n", bar_offset);
+        //printf("bar is %d\n", bar);
+        //printf("offset in bar is 0x%lx\n", offset_in_bar);
 
         val = 0;
         ret = pwrite(vdev->vbasedev.fd, &val, 4, vdev->mi_offset + 0);
