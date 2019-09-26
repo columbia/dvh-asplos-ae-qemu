@@ -10,3 +10,7 @@ pci_cfg_write(const char *dev, unsigned devid, unsigned fnid, unsigned offs, uns
 
 # hw/pci/msix.c
 msix_write_config(char *name, bool enabled, bool masked) "dev %s enabled %d masked %d"
+
+#hw/pci/mi.c
+mi(const char *s) "%s"
+mi_s(const char *s, const char *s1) "%s %s"

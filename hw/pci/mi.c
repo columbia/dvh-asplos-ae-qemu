@@ -21,7 +21,7 @@ static void copy_device_state(PCIDevice *dev, uint8_t *dev_state, size_t sz,
     uint8_t *hva;
     struct migration_info *mi = (struct migration_info *)dev->migration_info;
 
-    printf("%s starts\n", __func__);
+    trace_mi_s(__func__, " starts");
 
     baddr = ((uint64_t)mi->state_baddr_hi) << 32 | mi->state_baddr_lo;
     as = pci_device_iommu_address_space(dev);
@@ -42,7 +42,7 @@ static void copy_device_state(PCIDevice *dev, uint8_t *dev_state, size_t sz,
         baddr += len;
         dev_state += len;
     }
-    printf("%s done\n", __func__);
+    trace_mi_s(__func__, " done");
 }
 
 static void restore_device_state(PCIDevice *dev) {
@@ -61,10 +61,10 @@ static void restore_device_state(PCIDevice *dev) {
     /* 2. Restore the device state */
     section_type = qemu_get_byte(f);
     if (section_type != QEMU_VM_SECTION_FULL)
-        printf("WARNING: section type is not FULL: %d\n", section_type);
+        error_report("WARNING: section type is not FULL: %d\n", section_type);
     ret = qemu_loadvm_section_start_full(f, NULL);
     if (ret < 0)
-        printf("WARNING: Restoring virtio device state is failed\n");
+        trace_mi("WARNING: Restoring virtio device state is failed");
 
     qemu_fclose(f);
 
@@ -85,10 +85,10 @@ static void save_device_state(PCIDevice *dev) {
     /* 2. capture the device state to qemu file (temp) */
     se = qemu_savevm_get_se_opaque(dev->mi_opaque);
     if (!se) {
-        printf("WARNING: can't find device in se list\n");
+        error_report("WARNING: can't find device in se list\n");
         return;
     } else {
-        printf("Found device in se list: %s\n", dev->name);
+        trace_mi_s(dev->name, "Found device in se list");
     }
 
     f = create_mem_QEMUFile();
@@ -97,7 +97,7 @@ static void save_device_state(PCIDevice *dev) {
 
     ret = qemu_savevm_save_device_state(f, se, &dev_state_size);
     if (ret) {
-        printf("WARNING: virtio dev state save is failed: %d.\n", ret);
+        error_report("WARNING: virtio dev state save is failed: %d.\n", ret);
         mi->state_size = 0;
         return;
     }
@@ -121,7 +121,7 @@ void migration_cap_init(PCIDevice *dev, Error **errp)
                                         cap_size, errp);
 
     if (config_offset < 0) {
-        printf("error config_offset is %d\n", config_offset);
+        error_report("error config_offset is %d\n", config_offset);
         return;
     }
 
@@ -150,7 +150,7 @@ static uint64_t migration_mmio_read(void *opaque, hwaddr addr,
             val = *(uint32_t *)(dev->migration_info + addr);
             break;
         default:
-            printf("Reading 0x%lx from mi device memory is not defined\n", addr);
+            error_report("Reading 0x%lx from mi device memory is not defined\n", addr);
     }
 
     return val;
@@ -161,20 +161,20 @@ static void handle_state_ctl_write(PCIDevice *dev, uint32_t val)
     switch(val) {
         case MI_STATE_CTL_RESET:
             /* TODO: reset */
-            printf("mi cap state reset - todo\n");
+            trace_mi("mi cap state reset - todo");
             /* test: search for the device in se list */
             qemu_savevm_get_se_opaque(dev->mi_opaque);
             break;
         case MI_STATE_CTL_SAVE:
-            printf("mi cap save state\n");
+            trace_mi("mi cap save state");
             save_device_state(dev);
             break;
         case MI_STATE_CTL_RESTORE:
-            printf("mi cap restore state\n");
+            trace_mi("mi cap restore state");
             restore_device_state(dev);
             break;
         default:
-            printf("Writing %d to state ctl register is not defined\n", val);
+            error_report("Writing %d to state ctl register is not defined\n", val);
     }
 }
 
@@ -189,11 +189,11 @@ static void translate_log_base(PCIDevice *dev)
     int i = 0;
     struct iovec *iov = dev->iov;
 
-    printf("%s starts\n", __func__);
+    trace_mi_s(__func__, "starts");
 
     baddr = ((uint64_t)mi->log_baddr_hi) << 32 | mi->log_baddr_lo;
     sz = mi->log_size;
-    printf("log_size: 0x%lx, max iov: 0x%x\n", sz, MI_IOV_MAX_SIZE);
+    //printf("log_size: 0x%lx, max iov: 0x%x\n", sz, MI_IOV_MAX_SIZE);
     as = pci_device_iommu_address_space(dev);
 
     while (sz) {
@@ -205,7 +205,7 @@ static void translate_log_base(PCIDevice *dev)
         baddr += len;
         i++;
     }
-    printf("%s done\n", __func__);
+    trace_mi_s(__func__, " done");
 }
 
 static void enable_logging(PCIDevice *dev)
@@ -236,7 +236,7 @@ static void handle_log_ctl_write(PCIDevice *dev, uint32_t val)
     switch(val) {
         case MI_LOG_CTL_RESET:
             /* TODO: reset */
-            printf("mi cap log reset - todo\n");
+            trace_mi("mi cap log reset - todo");
             break;
         case MI_LOG_CTL_ENABLE:
             enable_logging(dev);
@@ -245,7 +245,7 @@ static void handle_log_ctl_write(PCIDevice *dev, uint32_t val)
             disable_logging(dev);
             break;
         default:
-            printf("Writing %d to log ctl register is not defined\n", val);
+            error_report("Writing %d to log ctl register is not defined\n", val);
     }
 }
 
@@ -271,7 +271,7 @@ static void migration_mmio_write(void *opaque, hwaddr addr,
             *(uint32_t *)(dev->migration_info + addr) = val;
             break;
         default:
-            printf("Writing 0x%lx to mi device memory is not defined\n", addr);
+            error_report("Writing 0x%lx to mi device memory is not defined\n", addr);
     }
 
     return;
