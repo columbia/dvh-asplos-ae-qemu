@@ -1955,7 +1955,7 @@ static int kvm_put_vtscdeadline_msr(X86CPU *cpu)
         return 0;
     }
 
-    printf("V_TSC_DEADLINE restore: 0x%" PRIx64 "\n", env->vtsc_deadline);
+    trace_kvm_s_s_64("V_TSC_DEADLINE restore:", "",  env->vtsc_deadline);
     ret = kvm_put_one_msr(cpu, MSR_IA32_V_TSCDEADLINE, env->vtsc_deadline);
     if (ret < 0) {
         return ret;
@@ -2392,18 +2392,19 @@ static int kvm_get_nested_state(X86CPU *cpu)
     struct kvm_nested_state *nested_state = (struct kvm_nested_state *)&env->nested_state;
     int ret, size;
 
-    printf("%s enter\n", __func__);
+    trace_kvm_s_s(__func__, "enter");
+
     nested_state->size = sizeof(struct kvm_nested_state);
-    printf("%s trying with size: %d\n", __func__, nested_state->size);
+    trace_kvm_s_s_d(__func__, "trying with size: ", nested_state->size);
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_NESTED_STATE, nested_state);
     if (ret < 0 && ret != -E2BIG) {
-    	printf("%s error: %d\n", __func__, ret);
+	trace_kvm_s_s_d(__func__, "error: ", ret);
         return ret;
     } else if (ret == -E2BIG) {
         size = nested_state->size;
-    	printf("%s got E2BIG. size: %d\n", __func__, size);
+    	trace_kvm_s_s_d(__func__, "got E2BIG. size: ", size);
         nested_state->size = size;
-        printf("%s re-trying with size: %d\n", __func__, nested_state->size);
+        trace_kvm_s_s_d(__func__, "re-trying with size: ", nested_state->size);
         ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_NESTED_STATE, nested_state);
         if (ret < 0) {
     	    printf("%s got error in the second ioctl: %d\n", __func__, ret);
@@ -2411,8 +2412,7 @@ static int kvm_get_nested_state(X86CPU *cpu)
 	}
     }
 
-    printf("%s done. nested_state: %p, size: %d\n", __func__,
-    		nested_state, nested_state->size);
+    trace_kvm_s_s_d(__func__, "done. size:", nested_state->size);
     return 0;
 }
 
@@ -2680,7 +2680,7 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_IA32_V_TSCDEADLINE:
             env->vtsc_deadline = msrs[i].data;
-            printf("V_TSC_DEADLINE save: 0x%" PRIx64 "\n", env->vtsc_deadline);
+            trace_kvm_s_s_64("V_TSC_DEADLINE save:", "",  env->vtsc_deadline);
             break;
         case MSR_VM_HSAVE_PA:
             env->vm_hsave = msrs[i].data;
