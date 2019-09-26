@@ -1189,8 +1189,6 @@ static void vhost_migration_log_set_addr(void *opaque, void *iov, uint64_t size)
     struct vhost_dev *hdev = opaque;
     int r;
 
-    printf("%s is called YEAH\n", __func__);
-
     r = hdev->vhost_ops->vhost_set_log_iov_base(hdev, iov, 0);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_set_log_iov_base failed");

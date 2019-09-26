@@ -2791,9 +2791,7 @@ SaveStateEntry *qemu_savevm_get_se_opaque(void *opaque)
         }
     }
 
-    if (se) 
-        printf("idstr: %s\n", se->idstr);
-    else
+    if (!se) 
         printf("Warning: cound't find SE\n");
 
     return se;
