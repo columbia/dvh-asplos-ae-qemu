@@ -3147,6 +3147,10 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     vmstate_register_ram(mr, owner_dev);
 }
 
+uint8_t *get_mr_host_addr(MemoryRegion *mr) {
+	return mr->ram_block->host;
+}
+
 static const TypeInfo memory_region_info = {
     .parent             = TYPE_OBJECT,
     .name               = TYPE_MEMORY_REGION,

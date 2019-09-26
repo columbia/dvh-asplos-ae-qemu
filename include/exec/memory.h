@@ -2139,4 +2139,6 @@ address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
 
 #endif
 
+uint8_t *get_mr_host_addr(MemoryRegion *mr);
+
 #endif

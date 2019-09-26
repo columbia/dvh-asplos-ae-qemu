@@ -40,6 +40,7 @@
 #define _LINUX_VIRTIO_PCI_H
 
 #include "standard-headers/linux/types.h"
+#include "dirty.h"
 
 #ifndef VIRTIO_PCI_NO_LEGACY
 
@@ -113,6 +114,8 @@
 #define VIRTIO_PCI_CAP_DEVICE_CFG	4
 /* PCI configuration access */
 #define VIRTIO_PCI_CAP_PCI_CFG		5
+/* log */
+#define VIRTIO_PCI_CAP_LOG_CFG		6
 
 /* This is the PCI capability header: */
 struct virtio_pci_cap {

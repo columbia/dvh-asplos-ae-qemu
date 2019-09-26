@@ -31,6 +31,8 @@
 #include "hw/virtio/vhost-user-blk.h"
 #endif
 
+#include "dirty.h"
+
 #ifdef CONFIG_VIRTFS
 #include "hw/9pfs/virtio-9p.h"
 #endif
@@ -156,18 +158,21 @@ typedef struct VirtIOPCIQueue {
   uint32_t used[2];
 } VirtIOPCIQueue;
 
+/* This covers virtio-net device */
+#define DEV_BUF_SIZE 0x10000
 struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     MemoryRegion bar;
     union {
         struct {
             VirtIOPCIRegion common;
+            VirtIOPCIRegion log_test;
             VirtIOPCIRegion isr;
             VirtIOPCIRegion device;
             VirtIOPCIRegion notify;
             VirtIOPCIRegion notify_pio;
         };
-        VirtIOPCIRegion regs[5];
+        VirtIOPCIRegion regs[6];
     };
     MemoryRegion modern_bar;
     MemoryRegion io_bar;
@@ -190,6 +195,11 @@ struct VirtIOPCIProxy {
     VirtIOIRQFD *vector_irqfd;
     int nvqs_with_notifiers;
     VirtioBusState bus;
+
+    uint32_t start_addr[2];
+    uint32_t end_addr[2];
+
+    uint32_t mi_bar_idx;
 };
 
 static inline bool virtio_pci_modern(VirtIOPCIProxy *proxy)

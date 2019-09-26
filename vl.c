@@ -1550,6 +1550,7 @@ static int machine_help_func(QemuOpts *opts, MachineState *machine)
 struct vm_change_state_entry {
     VMChangeStateHandler *cb;
     void *opaque;
+    void *pci_opaque;
     QLIST_ENTRY (vm_change_state_entry) entries;
 };
 
@@ -1568,10 +1569,39 @@ VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
     return e;
 }
 
+bool qemu_update_vm_change_state_handler_pci(void *opaque, void *pci_opaque)
+{
+    VMChangeStateEntry *e, *next;
+    bool ret = false;
+
+    QLIST_FOREACH_SAFE(e, &vm_change_state_head, entries, next) {
+        if (opaque == e->opaque) {
+            e->pci_opaque = pci_opaque;
+            ret = true;
+        }
+    }
+
+    return ret;
+}
+
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
 {
     QLIST_REMOVE (e, entries);
     g_free (e);
+}
+
+void vm_state_notify_one_pci(int running, RunState state, void *opaque)
+{
+    VMChangeStateEntry *e, *next;
+
+    trace_vm_state_notify(running, state);
+
+    QLIST_FOREACH_SAFE(e, &vm_change_state_head, entries, next) {
+        if (opaque == e->pci_opaque) {
+            e->cb(e->opaque, running, state);
+            break;
+        }
+    }
 }
 
 void vm_state_notify(int running, RunState state)

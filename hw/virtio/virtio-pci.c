@@ -32,10 +32,14 @@
 #include "hw/pci/msix.h"
 #include "hw/loader.h"
 #include "sysemu/kvm.h"
+#include "sysemu/sysemu.h"
 #include "virtio-pci.h"
 #include "qemu/range.h"
 #include "hw/virtio/virtio-bus.h"
 #include "qapi/visitor.h"
+#include "migration/savevm.h"
+#include "migration/qemu-file.h"
+#include "hw/pci/mi.h"
 
 #define VIRTIO_PCI_REGION_SIZE(dev)     VIRTIO_PCI_CONFIG_OFF(msix_present(dev))
 
@@ -1241,6 +1245,7 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
     case VIRTIO_PCI_COMMON_Q_USEDHI:
         val = proxy->vqs[vdev->queue_sel].used[1];
         break;
+
     default:
         val = 0;
     }
@@ -1340,6 +1345,7 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
     case VIRTIO_PCI_COMMON_Q_USEDHI:
         proxy->vqs[vdev->queue_sel].used[1] = val;
         break;
+
     default:
         break;
     }
@@ -1430,6 +1436,7 @@ static void virtio_pci_device_write(void *opaque, hwaddr addr,
 
 static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
 {
+    Error *err = NULL;
     static const MemoryRegionOps common_ops = {
         .read = virtio_pci_common_read,
         .write = virtio_pci_common_write,
@@ -1482,6 +1489,9 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
                           proxy,
                           "virtio-pci-common",
                           proxy->common.size);
+
+    memory_region_init_ram_nomigrate(&proxy->log_test.mr, OBJECT(proxy),
+		       "virtio-log_test", proxy->log_test.size, &err);
 
     memory_region_init_io(&proxy->isr.mr, OBJECT(proxy),
                           &isr_ops,
@@ -1566,6 +1576,16 @@ static void virtio_pci_pre_plugged(DeviceState *d, Error **errp)
     virtio_add_feature(&vdev->host_features, VIRTIO_F_BAD_FEATURE);
 }
 
+static void vhost_register_migration_ops(VirtIODevice *vdev,
+                                         const struct MigrationOps *ops,
+                                         void *opaque)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(DEVICE(vdev)->parent_bus->parent);
+    PCIDevice *pci_dev = &proxy->pci_dev;
+
+    register_migration_ops(pci_dev, ops, opaque);
+}
+
 /* This is called by virtio-bus just after the device is plugged. */
 static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 {
@@ -1577,6 +1597,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
     uint8_t *config;
     uint32_t size;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    bool pci_registered;
 
     /*
      * Virtio capabilities present without
@@ -1648,9 +1669,16 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         virtio_pci_modern_regions_init(proxy);
 
         virtio_pci_modern_mem_region_map(proxy, &proxy->common, &cap);
+        virtio_pci_modern_mem_region_map(proxy, &proxy->log_test, &cap);
+        /* FIXME: 0x10000 is enough for virtio-net for now */
+        migration_cap_init_exclusive_bar(&proxy->pci_dev, proxy->mi_bar_idx,
+                                         vdev, 0x10000, errp);
+        /* Vhost will setup the ops. */
+        vdev->vhost_cb = vhost_register_migration_ops;
         virtio_pci_modern_mem_region_map(proxy, &proxy->isr, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->device, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->notify, &notify.cap);
+
 
         if (modern_pio) {
             memory_region_init(&proxy->io_bar, OBJECT(proxy),
@@ -1705,6 +1733,10 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         pci_register_bar(&proxy->pci_dev, proxy->legacy_io_bar_idx,
                          PCI_BASE_ADDRESS_SPACE_IO, &proxy->bar);
     }
+
+    pci_registered = qemu_update_vm_change_state_handler_pci(vdev, &proxy->pci_dev);
+    if (!pci_registered)
+	    printf("Warning: pci opaque is not registered\n");
 }
 
 static void virtio_pci_device_unplugged(DeviceState *d)
@@ -1717,6 +1749,7 @@ static void virtio_pci_device_unplugged(DeviceState *d)
 
     if (modern) {
         virtio_pci_modern_mem_region_unmap(proxy, &proxy->common);
+        virtio_pci_modern_mem_region_unmap(proxy, &proxy->log_test);
         virtio_pci_modern_mem_region_unmap(proxy, &proxy->isr);
         virtio_pci_modern_mem_region_unmap(proxy, &proxy->device);
         virtio_pci_modern_mem_region_unmap(proxy, &proxy->notify);
@@ -1749,21 +1782,27 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     proxy->legacy_io_bar_idx  = 0;
     proxy->msix_bar_idx       = 1;
     proxy->modern_io_bar_idx  = 2;
+    proxy->mi_bar_idx         = 3;
     proxy->modern_mem_bar_idx = 4;
 
     proxy->common.offset = 0x0;
+    /* Add 0x10000 to save device state */
     proxy->common.size = 0x1000;
     proxy->common.type = VIRTIO_PCI_CAP_COMMON_CFG;
 
-    proxy->isr.offset = 0x1000;
+    proxy->log_test.offset = proxy->common.offset + proxy->common.size;
+    proxy->log_test.size = DEV_BUF_SIZE + LOG_BUF_SIZE;
+    proxy->log_test.type = VIRTIO_PCI_CAP_LOG_CFG;
+
+    proxy->isr.offset = proxy->log_test.offset + proxy->log_test.size;
     proxy->isr.size = 0x1000;
     proxy->isr.type = VIRTIO_PCI_CAP_ISR_CFG;
 
-    proxy->device.offset = 0x2000;
+    proxy->device.offset = proxy->isr.offset + proxy->isr.size;
     proxy->device.size = 0x1000;
     proxy->device.type = VIRTIO_PCI_CAP_DEVICE_CFG;
 
-    proxy->notify.offset = 0x3000;
+    proxy->notify.offset = proxy->device.offset + proxy->device.size;
     proxy->notify.size = virtio_pci_queue_mem_mult(proxy) * VIRTIO_QUEUE_MAX;
     proxy->notify.type = VIRTIO_PCI_CAP_NOTIFY_CFG;
 

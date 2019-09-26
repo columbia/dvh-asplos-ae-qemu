@@ -43,6 +43,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qemu/cutils.h"
+#include "hw/pci/mi.h"
 
 //#define DEBUG_PCI
 #ifdef DEBUG_PCI

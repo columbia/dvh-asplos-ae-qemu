@@ -28,6 +28,8 @@
 #include "migration/blocker.h"
 #include "sysemu/dma.h"
 #include "trace.h"
+#include "dirty.h"
+#include "hw/pci/mi.h"
 
 /* enabled until disconnected backend stabilizes */
 #define _VHOST_DEBUG 1
@@ -776,10 +778,8 @@ err_features:
     return r;
 }
 
-static int vhost_migration_log(MemoryListener *listener, int enable)
+static int __vhost_migration_log(struct vhost_dev *dev, int enable)
 {
-    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
-                                         memory_listener);
     int r;
     if (!!enable == dev->log_enabled) {
         return 0;
@@ -803,6 +803,13 @@ static int vhost_migration_log(MemoryListener *listener, int enable)
     }
     dev->log_enabled = enable;
     return 0;
+}
+
+static int vhost_migration_log(MemoryListener *listener, int enable)
+{
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         memory_listener);
+    return __vhost_migration_log(dev, enable);
 }
 
 static void vhost_log_global_start(MemoryListener *listener)
@@ -1177,6 +1184,36 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
     event_notifier_cleanup(&vq->masked_notifier);
 }
 
+static void vhost_migration_log_set_addr(void *opaque, void *iov, uint64_t size)
+{
+    struct vhost_dev *hdev = opaque;
+    int r;
+
+    printf("%s is called YEAH\n", __func__);
+
+    r = hdev->vhost_ops->vhost_set_log_iov_base(hdev, iov, 0);
+    if (r < 0) {
+        VHOST_OPS_DEBUG("vhost_set_log_iov_base failed");
+    }
+
+    r = hdev->vhost_ops->vhost_set_log_iov_size(hdev, &size, 0);
+    if (r < 0) {
+        VHOST_OPS_DEBUG("vhost_set_log_iov_size failed");
+    }
+
+    return;
+}
+
+static void vhost_migration_log_start(void *opaque)
+{
+    __vhost_migration_log((struct vhost_dev *)opaque, true);
+}
+
+static void vhost_migration_log_stop(void *opaque)
+{
+    __vhost_migration_log((struct vhost_dev *)opaque, false);
+}
+
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout)
 {
@@ -1544,6 +1581,20 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
             vhost_device_iotlb_miss(hdev, vq->used_phys, true);
         }
     }
+
+    static const struct MigrationOps vhostOps = {
+        .set_addr = vhost_migration_log_set_addr,
+        .start = vhost_migration_log_start,
+        .stop = vhost_migration_log_stop,
+    };
+
+    /* Vhost doesn't know if it's PCI and if it supports migration.
+     * We, howver, need a way to hook logging fuctions in here.
+     * Register the functions if virtio device supports migration.
+     */
+    if (hdev->vdev->vhost_cb)
+        hdev->vdev->vhost_cb(hdev->vdev, &vhostOps, hdev);
+
     return 0;
 fail_log:
     vhost_log_put(hdev, false);

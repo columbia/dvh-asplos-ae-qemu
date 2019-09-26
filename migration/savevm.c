@@ -287,29 +287,6 @@ const VMStateInfo vmstate_info_timer = {
 };
 
 
-typedef struct CompatEntry {
-    char idstr[256];
-    int instance_id;
-} CompatEntry;
-
-typedef struct SaveStateEntry {
-    QTAILQ_ENTRY(SaveStateEntry) entry;
-    char idstr[256];
-    int instance_id;
-    int alias_id;
-    int version_id;
-    /* version id read from the stream */
-    int load_version_id;
-    int section_id;
-    /* section id read from the stream */
-    int load_section_id;
-    SaveVMHandlers *ops;
-    const VMStateDescription *vmsd;
-    void *opaque;
-    CompatEntry *compat;
-    int is_ram;
-} SaveStateEntry;
-
 typedef struct SaveState {
     QTAILQ_HEAD(, SaveStateEntry) handlers;
     int global_section_id;
@@ -1279,6 +1256,32 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only,
     return 0;
 }
 
+int qemu_savevm_save_device_state(QEMUFile *f, SaveStateEntry *se, int *size)
+{
+    int ret;
+    int64_t pos_prev, pos_now;
+
+    if (!f)
+        return -1;
+
+    pos_prev = qemu_ftell(f);
+    trace_savevm_section_start(se->idstr, se->section_id);
+
+    save_section_header(f, se, QEMU_VM_SECTION_FULL);
+    ret = vmstate_save(f, se, NULL);
+    if (ret) {
+        qemu_file_set_error(f, ret);
+        return ret;
+    }
+    trace_savevm_section_end(se->idstr, se->section_id, 0);
+    save_section_footer(f, se);
+
+    pos_now = qemu_ftell(f);
+    *size = pos_now - pos_prev;
+
+    return 0;
+}
+
 /* Give an estimate of the amount left to be transferred,
  * the result is split into the amount for units that can and
  * for units that can't do postcopy.
@@ -2076,7 +2079,7 @@ static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
     return true;
 }
 
-static int
+int
 qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
 {
     uint32_t instance_id, version_id, section_id;
@@ -2762,4 +2765,36 @@ bool vmstate_check_only_migratable(const VMStateDescription *vmsd)
     }
 
     return !(vmsd && vmsd->unmigratable);
+}
+
+SaveStateEntry *qemu_savevm_get_se(const VMStateDescription *vmsd)
+{
+    SaveStateEntry *se = NULL;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->vmsd == vmsd) {
+            if (!strcmp(se->idstr,"0000:00:05.0:00.0/virtio-net"))
+                break;
+        }
+    }
+
+    return se;
+}
+
+SaveStateEntry *qemu_savevm_get_se_opaque(void *opaque)
+{
+    SaveStateEntry *se = NULL;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->opaque == opaque) {
+                break;
+        }
+    }
+
+    if (se) 
+        printf("idstr: %s\n", se->idstr);
+    else
+        printf("Warning: cound't find SE\n");
+
+    return se;
 }

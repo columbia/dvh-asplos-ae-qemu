@@ -10,6 +10,8 @@
 
 #include "hw/pci/pcie.h"
 
+#include "hw/pci/mi.h"
+
 extern bool pci_available;
 
 /* PCI bus */
@@ -189,6 +191,8 @@ enum {
     QEMU_PCIE_LNKSTA_DLLLA = (1 << QEMU_PCIE_LNKSTA_DLLLA_BITNR),
 #define QEMU_PCIE_EXTCAP_INIT_BITNR 9
     QEMU_PCIE_EXTCAP_INIT = (1 << QEMU_PCIE_EXTCAP_INIT_BITNR),
+
+    QEMU_PCI_CAP_MI = (1 << 10 ),
 };
 
 #define TYPE_PCI_DEVICE "pci-device"
@@ -332,6 +336,9 @@ struct PCIDevice {
     /* Offset of MSI capability in config space */
     uint8_t msi_cap;
 
+    /* Offset of Migration capability in config space */
+    uint8_t migration_cap;
+
     /* PCI Express */
     PCIExpressDevice exp;
 
@@ -351,6 +358,15 @@ struct PCIDevice {
     MSIVectorUseNotifier msix_vector_use_notifier;
     MSIVectorReleaseNotifier msix_vector_release_notifier;
     MSIVectorPollNotifier msix_vector_poll_notifier;
+
+    /* Space to store migration info: addr, size, status */
+    uint8_t *migration_info;
+    MemoryRegion migration_info_mmio;
+    MemoryRegion migration_info_exclusive_bar;
+    void *mi_opaque; /* Use for finding the device in se list */
+    void *iov;
+    const struct MigrationOps *mi_ops;
+    void *mi_log_opaque;
 };
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,

@@ -107,5 +107,4 @@ typedef struct VirtIONet {
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
                                    const char *type);
-
 #endif
